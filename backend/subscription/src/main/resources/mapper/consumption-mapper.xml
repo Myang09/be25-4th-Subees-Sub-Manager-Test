@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.subees.submanager.consumption.model.mapper.ConsumptionMapper">
+
+    <!-- 월 총 소비 금액 -->
+    <select id="selectMonthlyTotalAmount" resultType="Integer">
+        SELECT COALESCE(SUM(
+            CASE
+                 WHEN billing_cycle = '1M' THEN price
+                 WHEN billing_cycle = '1Y'
+                 AND MONTH(start_date) = MONTH(#{monthStart}) THEN price
+                 ELSE 0 END), 0)
+        FROM add_subscription
+        WHERE user_id = #{userId}
+        AND start_date &lt; #{nextMonthStart}
+        AND (end_date IS NULL OR end_date &gt;= #{monthStart})
+    </select>
+
+
+    <!-- 달력 전체 조회 -->
+    <select id="selectCalendar" resultType="com.subees.submanager.consumption.model.dto.CalendarResponseDto">
+        SELECT
+            pay_day AS payDay,
+            COUNT(*) AS totalCount,
+            SUM(amount) AS totalAmount,
+            GROUP_CONCAT(item_name ORDER BY item_name SEPARATOR ', ') AS itemNames
+        FROM (
+            SELECT
+                LEAST(DAY(a.start_date), DAY(LAST_DAY(#{monthStart}))) AS pay_day,
+                s.item_name AS item_name,
+                a.price AS amount
+            FROM add_subscription a
+                     JOIN subscription_item s ON a.item_id = s.item_id
+            WHERE a.user_id = #{userId}
+              AND a.billing_cycle = '1M'
+              AND a.start_date &lt; #{nextMonthStart}
+              AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+
+            UNION ALL
+
+            SELECT
+                LEAST(DAY(a.start_date), DAY(LAST_DAY(#{monthStart}))) AS pay_day,
+                s.item_name AS item_name,
+                a.price AS amount
+            FROM add_subscription a
+                     JOIN subscription_item s ON a.item_id = s.item_id
+            WHERE a.user_id = #{userId}
+                      AND a.billing_cycle = '1Y'
+                      AND MONTH(a.start_date) = #{month}
+            AND a.start_date &lt; #{nextMonthStart}
+            AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+            ) t
+        GROUP BY pay_day
+        ORDER BY pay_day
+    </select>
+    <!-- 선택 일 구독 조회(구독명, 가격, 선택일)-->
+    <select id="getDetail" resultType="com.subees.submanager.consumption.model.dto.DateDetailResponseDto">
+        SELECT
+            a.subscription_id AS subscriptionId,
+            s.item_name AS itemName,
+            a.price AS price,
+            LEAST(DAY(a.start_date), DAY(LAST_DAY(#{monthStart}))) AS billingDay,
+            pm.custom_card_company AS customCardCompany,
+            c.card_company AS cardCompany
+        FROM add_subscription a
+                 JOIN subscription_item s ON a.item_id = s.item_id
+                 LEFT JOIN payment_method pm ON a.payment_id = pm.payment_id
+                 LEFT JOIN card c ON pm.card_id = c.card_id
+        WHERE a.user_id = #{userId}
+          AND LEAST(DAY(a.start_date), DAY(LAST_DAY(#{monthStart}))) = #{date}
+          AND (
+            (
+                a.billing_cycle = '1M'
+                    AND a.start_date &lt; #{nextMonthStart}
+                    AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+                )
+                OR
+            (
+                a.billing_cycle = '1Y'
+                    AND MONTH(a.start_date) = #{month}
+                AND a.start_date &lt; #{nextMonthStart}
+                AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+            )
+            )
+        ORDER BY s.item_name
+    </select>
+
+    <select id="selectCategory"
+            resultType="com.subees.submanager.consumption.model.vo.CategorySummary">
+        SELECT
+            c.category_name AS categoryName,
+            COALESCE(SUM(
+                        CASE
+                            WHEN a.billing_cycle = '1M' THEN a.price
+                            WHEN a.billing_cycle = '1Y' THEN FLOOR(a.price / 12)
+                            ELSE 0 END), 0) AS totalAmount,
+            GROUP_CONCAT(s.item_name ORDER BY s.item_name SEPARATOR ', ') AS itemNames
+        FROM add_subscription a
+        JOIN subscription_item s ON a.item_id = s.item_id
+        JOIN subscription_category c ON s.category_id = c.category_id
+        WHERE a.user_id = #{userId}
+        AND a.start_date &lt; #{nextMonthStart}
+        AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+        GROUP BY c.category_id, c.category_name
+        ORDER BY totalAmount DESC
+    </select>
+
+    <select id="selectMonthlyCategoryAnalysis"
+            resultType="com.subees.submanager.consumption.model.dto.CategoryAnalysisResponseDto">
+        SELECT
+        c.category_name AS categoryName,
+        COALESCE(SUM(
+                     CASE
+                        WHEN a.billing_cycle = '1M' THEN a.price
+                        WHEN a.billing_cycle = '1Y' THEN FLOOR(a.price / 12)
+                        ELSE 0 END), 0) AS totalAmount,
+        COUNT(*) AS subscriptionCount
+        FROM add_subscription a
+        JOIN subscription_item s ON a.item_id = s.item_id
+        JOIN subscription_category c ON s.category_id = c.category_id
+        WHERE a.user_id = #{userId}
+        AND a.start_date &lt; #{nextMonthStart}
+        AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+        GROUP BY c.category_name
+        ORDER BY totalAmount DESC
+    </select>
+
+    <select id="selectYearlyCategoryAnalysis"
+            resultType="com.subees.submanager.consumption.model.dto.CategoryAnalysisResponseDto">
+        SELECT
+        c.category_name AS categoryName,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN a.billing_cycle = '1M' THEN a.price * 12
+                            WHEN a.billing_cycle = '1Y' THEN a.price
+                            ELSE 0 END), 0) AS totalAmount,
+        COUNT(*) AS subscriptionCount
+        FROM add_subscription a
+        JOIN subscription_item s ON a.item_id = s.item_id
+        JOIN subscription_category c ON s.category_id = c.category_id
+        WHERE a.user_id = #{userId}
+        AND a.start_date &lt; #{nextYearStart}
+        AND (a.end_date IS NULL OR a.end_date &gt;= #{yearStart})
+        GROUP BY c.category_name
+        ORDER BY totalAmount DESC
+    </select>
+
+<!-- 월 분석 -->
+    <select id="selectMonthlyPaymentList"
+            resultType="com.subees.submanager.consumption.model.dto.MonthlyPaymentResponseDto">
+        SELECT
+            a.payment_id AS paymentId,
+            s.item_name AS subscriptionName,
+            sc.category_name AS categoryName,
+            COALESCE(p.card_name, c.card_company, p.custom_card_company, '등록 카드') AS paymentCardName,
+            CASE
+                WHEN a.billing_cycle = '1Y' THEN FLOOR(a.price / 12)
+                ELSE a.price
+                END AS paymentAmount,
+            CASE
+                WHEN a.billing_cycle = '1Y' THEN '연간 구독(월 환산)'
+                ELSE '매월 구독'
+                END AS displayDateLabel,
+            CASE
+                WHEN a.billing_cycle = '1Y' THEN TRUE
+                ELSE FALSE
+                END AS isYearly
+        FROM add_subscription a
+        JOIN subscription_item s ON a.item_id = s.item_id
+        JOIN subscription_category sc ON s.category_id = sc.category_id
+        LEFT JOIN payment_method p ON a.payment_id = p.payment_id
+        LEFT JOIN card c ON p.card_id = c.card_id
+        WHERE a.user_id = #{userId}
+          AND a.start_date &lt; #{nextMonthStart}
+          AND (a.end_date IS NULL OR a.end_date &gt;= #{monthStart})
+        ORDER BY
+            CASE
+                WHEN a.billing_cycle = '1Y' THEN 1
+                ELSE 0
+                END, s.item_name ASC
+
+    </select>
+</mapper>

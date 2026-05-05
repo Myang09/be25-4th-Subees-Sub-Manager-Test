@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: subees-backend
+  namespace: subees
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: subees-backend
+  template:
+    metadata:
+      labels:
+        app: subees-backend
+    spec:
+      containers:
+        - name: subees-backend
+          image: myang12/subees-backend:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-url
+
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-username
+
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-password
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: jwt-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

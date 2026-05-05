@@ -22,3 +22,9 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+k8s/kubernetes_secret.yaml
+k8s/secret.yaml
+secret.yaml
+secrets.yaml
+*-secret.yamlgit status --ignored

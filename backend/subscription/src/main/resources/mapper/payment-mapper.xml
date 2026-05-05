@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.subees.submanager.payment.model.mapper.CardMapper">
+
+    <resultMap id="paymentDetailResultMap" type="Payment">
+        <id property="paymentId" column="payment_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="cardId" column="card_id"/>
+        <result property="customCardCompany" column="custom_card_company"/>
+        <result property="cardName" column="card_name"/>
+        <result property="isActive" column="is_active"/>
+    </resultMap>
+
+    <!-- 카드 등록 -->
+    <insert id="insertPaymentMethod"  parameterType="Payment" useGeneratedKeys="true" keyProperty="paymentId">
+        INSERT INTO payment_method (
+            user_id,
+            card_id,
+            custom_card_company,
+            card_name)
+        VALUES (
+                   #{userId},
+                   #{cardId},
+                   #{customCardCompany},
+                   #{cardName}
+               )
+    </insert>
+
+    <!-- 기본제공 카드 중복 등록 방지 -->
+    <select id="countCardId" resultType="int">
+        SELECT COUNT(*)
+        FROM payment_method
+        WHERE user_id = #{userId}
+          AND card_id = #{cardId}
+          And card_name = #{cardName}
+          AND is_active = 1
+    </select>
+
+    <!-- 직접입력 카드 중복 등록 방지 카운드 -->
+    <select id="countCardCustom" resultType="int">
+        SELECT COUNT(*)
+        FROM payment_method
+        WHERE user_id = #{userId}
+          AND custom_card_company = #{customCardCompany}
+          AND card_name = #{cardName}
+          AND is_active = 1
+    </select>
+
+    <!-- 카드 수정 -->
+    <update id="updateCard" parameterType="com.subees.submanager.payment.model.vo.Payment">
+        UPDATE payment_method
+        SET card_id = #{cardId},
+            custom_card_company = #{customCardCompany},
+            card_name = #{cardName}
+        WHERE payment_id = #{paymentId}
+          AND user_id = #{userId}
+          AND is_active = '1'
+    </update>
+
+    <!-- 이미 수정된 내용 방지 카운트 -->
+
+    <select id="duplicateSelectedCard" resultType="int">
+        SELECT COUNT(*)
+        FROM payment_method
+        WHERE user_id = #{userId}
+          AND card_id = #{cardId}
+          AND card_name = #{cardName}
+          AND payment_id != #{paymentId}
+          AND is_active = '1'
+    </select>
+
+
+    <select id="duplicateCustomCard" resultType="int">
+        SELECT COUNT(*)
+        FROM payment_method
+        WHERE user_id = #{userId}
+          AND custom_card_company = #{customCardCompany}
+          AND card_name = #{cardName}
+          AND payment_id != #{paymentId}
+          AND is_active = '1'
+    </select>
+
+    <!-- 카드 단건 조회 -->
+    <select id="selectPaymentById" resultMap="paymentDetailResultMap">
+        SELECT
+            payment_id,
+            user_id,
+            card_id,
+            custom_card_company,
+            card_name,
+            is_active
+        FROM payment_method
+        WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- 논리 삭제 조건(구독 비활성화 시) -->
+    <select id="activeCardByPayment" resultType="int">
+        SELECT COUNT(*)
+        FROM add_subscription
+        WHERE payment_id = #{paymentId}
+          AND use_yn = 'Y'
+    </select>
+
+    <!-- 논리 삭제 ( is_active = 0) -->
+    <update id="deleteCard">
+        UPDATE payment_method
+        SET is_active = 0
+        WHERE payment_id = #{paymentId}
+          AND user_id = #{userId}
+    </update>
+
+
+    <!-- 카드 조회-->
+    <select id="selectCards" resultType="com.subees.submanager.payment.model.vo.Payment">
+        SELECT
+            d.payment_id,
+            d.card_id,
+            c.card_company,
+            d.card_name,
+            d.custom_card_company,
+            d.is_active
+        FROM payment_method d
+        Left JOIN card c ON c.card_id = d.card_id
+        WHERE user_id =  #{userId}
+        AND is_active = 1
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>

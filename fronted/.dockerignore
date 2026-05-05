@@ -1,0 +1,13 @@
+.git
+.gitignore
+.dockerignore
+
+node_modules
+dist
+.vite
+
+.env
+.env.*
+
+*.log
+logs

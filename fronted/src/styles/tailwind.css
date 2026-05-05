@@ -1,0 +1,205 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Pretendard Variable', 'Pretendard', 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900 antialiased;
+    letter-spacing: -0.02em;
+    line-height: 1.6;
+    background-image:
+      radial-gradient(circle at top left, rgba(242, 210, 33, 0.14), transparent 26%),
+      radial-gradient(circle at 88% 8%, rgba(80, 64, 22, 0.08), transparent 18%),
+      linear-gradient(180deg, #f4f0e6 0%, #eee7d7 100%);
+  }
+
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  .app-frame {
+    --shell-side-width: clamp(276px, 17.8vw, 304px);
+    @apply w-full px-4 py-4 lg:px-5 xl:px-6;
+  }
+
+  .shell-main {
+    @apply min-w-0 flex-1;
+  }
+
+  .public-shell {
+    @apply mx-auto flex w-full max-w-publicShell flex-col gap-8 2xl:gap-9;
+  }
+
+  .page-stack {
+    @apply grid gap-6 xl:gap-7;
+  }
+
+  .page-eyebrow {
+    @apply text-xs font-extrabold uppercase tracking-[0.14em] text-neutral-300;
+  }
+
+  .page-title {
+    @apply mt-2 text-[36px] font-extrabold leading-[1.18] tracking-[-0.045em] text-neutral-900 xl:text-[42px];
+  }
+
+  .page-description {
+    @apply mt-3 max-w-4xl text-base leading-7 text-neutral-600;
+  }
+
+  .section-heading {
+    @apply text-[24px] font-bold leading-[1.28] tracking-[-0.03em] text-neutral-900 xl:text-[28px];
+  }
+
+  .card-heading {
+    @apply text-[20px] font-bold leading-[1.32] tracking-[-0.03em] text-neutral-900 xl:text-[22px];
+  }
+
+  .body-copy {
+    @apply text-base leading-7 text-neutral-600;
+  }
+
+  .meta-copy {
+    @apply text-[14px] leading-6 text-neutral-400;
+  }
+
+  .utility-panel {
+    @apply rounded-[28px] border border-[rgba(46,34,10,0.08)] bg-[rgba(255,253,247,0.96)] shadow-soft backdrop-blur;
+  }
+
+  .section-card {
+    @apply shell-card p-6 md:p-7 xl:p-8 2xl:p-9;
+  }
+
+  .dense-card {
+    @apply rounded-card border border-[rgba(46,34,10,0.08)] bg-[rgba(255,253,247,0.88)] p-5 shadow-soft;
+  }
+
+  .shell-card {
+    @apply rounded-card border border-[rgba(46,34,10,0.08)] bg-[rgba(255,253,247,0.94)] shadow-soft backdrop-blur-[2px];
+  }
+
+  .ghost-card {
+    @apply rounded-card border border-[rgba(46,34,10,0.08)] bg-[rgba(255,249,226,0.76)];
+  }
+
+  .kpi-value {
+    @apply text-[36px] font-bold leading-[1.12] tracking-[-0.04em] text-neutral-900 xl:text-[40px];
+  }
+
+  .section-title {
+    @apply text-[24px] font-bold tracking-[-0.03em] text-neutral-900 xl:text-[28px];
+  }
+
+  .section-subtitle {
+    @apply text-[14px] leading-6 text-neutral-500;
+  }
+
+  .primary-button {
+    @apply inline-flex min-h-[54px] items-center justify-center rounded-[22px] border border-transparent bg-brand-500 px-5 text-sm font-extrabold text-[#231A07] transition hover:-translate-y-0.5 hover:bg-brand-600 active:scale-[0.985];
+    box-shadow: 0 14px 28px rgba(242, 210, 33, 0.32);
+  }
+
+  .secondary-button {
+    @apply inline-flex min-h-[54px] items-center justify-center rounded-[22px] border border-[rgba(46,34,10,0.08)] bg-brand-50 px-5 text-sm font-extrabold text-neutral-900 transition hover:border-[rgba(46,34,10,0.14)] hover:bg-brand-100;
+  }
+
+  .tertiary-button {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-[18px] border border-transparent bg-transparent px-4 text-sm font-bold text-neutral-500 transition hover:bg-white/60 hover:text-neutral-900;
+  }
+
+  .danger-ghost-button {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-[18px] border border-transparent bg-transparent px-4 text-sm font-bold text-danger transition hover:bg-red-50;
+  }
+
+  .guide-card {
+    @apply rounded-[26px] border border-[rgba(46,34,10,0.08)] bg-[linear-gradient(180deg,rgba(255,248,224,0.96),rgba(255,253,247,0.94))] p-5 shadow-soft;
+  }
+
+  .guide-pill {
+    @apply inline-flex min-h-[34px] items-center rounded-full border border-[rgba(46,34,10,0.08)] bg-white/80 px-3.5 text-[12px] font-extrabold text-warning;
+  }
+
+  .guide-step {
+    @apply rounded-[22px] border border-[rgba(46,34,10,0.08)] bg-white/80 p-4;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-semibold text-neutral-500 transition hover:bg-brand-100 hover:text-neutral-900;
+  }
+
+  .nav-link.is-active {
+    @apply bg-[rgba(242,210,33,0.16)] text-warning;
+    box-shadow: inset 0 0 0 1px rgba(242, 210, 33, 0.18);
+  }
+
+  .form-label {
+    @apply text-sm font-semibold text-neutral-900;
+  }
+
+  .form-input {
+    @apply min-h-[56px] w-full rounded-input border px-4 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-300 focus:bg-white focus:ring-4;
+    border-color: rgba(46, 34, 10, 0.14);
+    background-color: rgba(255, 253, 247, 0.92);
+    --tw-ring-color: rgba(138, 106, 0, 0.16);
+  }
+
+  .form-input:hover {
+    border-color: rgba(138, 106, 0, 0.34);
+  }
+
+  .form-input:focus {
+    border-color: rgba(138, 106, 0, 0.72);
+    box-shadow: 0 0 0 1px rgba(138, 106, 0, 0.24);
+  }
+
+  .auth-plain-input {
+    @apply min-h-[48px] rounded-full border bg-white px-5 text-sm text-neutral-900 placeholder:text-neutral-300;
+    border-color: rgba(46, 34, 10, 0.1);
+    box-shadow: 0 8px 14px rgba(33, 24, 8, 0.11);
+  }
+
+  .chip-button {
+    @apply inline-flex min-h-[40px] items-center justify-center rounded-full border border-transparent bg-brand-50 px-4 text-sm font-bold text-neutral-600 transition hover:border-[rgba(46,34,10,0.08)] hover:text-neutral-900;
+  }
+
+  .chip-button.is-selected {
+    @apply bg-[rgba(242,210,33,0.16)] text-warning;
+    box-shadow: inset 0 0 0 1px rgba(242, 210, 33, 0.18);
+  }
+
+  .eyebrow-label {
+    @apply text-xs font-extrabold uppercase tracking-[0.12em] text-neutral-300;
+  }
+
+  .status-success {
+    @apply text-success;
+  }
+
+  .status-danger {
+    @apply text-danger;
+  }
+}
+
+
+@media (min-width: 1024px) {
+  .app-frame {
+    padding-left: clamp(16px, 1.45vw, 26px);
+    padding-right: clamp(18px, 1.6vw, 30px);
+    padding-top: 16px;
+    padding-bottom: 18px;
+  }
+
+  .shell-main {
+    margin-left: calc(var(--shell-side-width) + clamp(18px, 1.65vw, 28px));
+    width: calc(100% - var(--shell-side-width) - clamp(18px, 1.65vw, 28px));
+  }
+}

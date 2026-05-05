@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.subees.submanager.subscription.model.mapper.SubscriptionMapper">
+
+    <!-- 상세조회 resultMap -->
+    <resultMap id="subscriptionDetailResultMap"
+               type="com.subees.submanager.subscription.model.dto.crud.SubscriptionResponse">
+        <id property="subscriptionId" column="subscriptionId"/>
+        <result property="categoryName" column="categoryName"/>
+        <result property="itemName" column="itemName"/>
+        <result property="price" column="price"/>
+        <result property="billingCycle" column="billingCycle"/>
+        <result property="startDate" column="startDate"/>
+        <result property="useYn" column="useYn"/>
+        <result property="createdAt" column="createdAt"/>
+
+        <association property="paymentMethod"
+                     javaType="com.subees.submanager.subscription.model.dto.crud.SubscriptionResponse$PaymentMethod">
+            <id property="id" column="payment_method_id"/>
+            <result property="name" column="payment_method_name"/>
+        </association>
+    </resultMap>
+
+    <!-- 구독 목록 조회
+    <select id="selectAll"
+            resultType="com.subees.submanager.subscription.model.dto.crud.SubscriptionListResponse">
+        SELECT
+            s.subscription_id AS subscriptionId,
+            c.category_name AS categoryName,
+            i.item_name AS itemName,
+            s.price AS price,
+            s.use_yn AS useYn
+        FROM add_subscription s
+                 JOIN subscription_item i
+                      ON s.item_id = i.item_id
+                 JOIN subscription_category c
+                      ON i.category_id = c.category_id
+        WHERE s.user_id = #{userId}
+        AND s.use_yn = 'Y'
+        ORDER BY s.created_at DESC
+        ORDER BY s.subscription_id DESC
+    </select>
+        -->
+
+    <select id="selectAll"
+            resultType="com.subees.submanager.subscription.model.dto.crud.SubscriptionListResponse">
+        SELECT
+            s.subscription_id AS subscriptionId,
+            c.category_name AS categoryName,
+            i.item_name AS itemName,
+            s.price AS price,
+            s.billing_cycle AS billingCycle,
+            DATE(s.start_date) AS startDate,
+            DATE(s.created_at) AS createdAt,
+            s.use_yn AS useYn,
+
+            CASE
+            WHEN pm.card_id IS NOT NULL THEN CONCAT(ca.card_company, '(', pm.card_name, ')')
+            ELSE pm.custom_card_company
+        END AS paymentMethodName,
+
+        CASE
+            WHEN s.billing_cycle = '1M' THEN
+                CASE
+                    WHEN STR_TO_DATE(
+                        CONCAT(
+                            YEAR(CURDATE()), '-',
+                            LPAD(MONTH(CURDATE()), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(LAST_DAY(CURDATE()))
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    ) >= CURDATE()
+                    THEN STR_TO_DATE(
+                        CONCAT(
+                            YEAR(CURDATE()), '-',
+                            LPAD(MONTH(CURDATE()), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(LAST_DAY(CURDATE()))
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    )
+                    ELSE STR_TO_DATE(
+                        CONCAT(
+                            YEAR(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)), '-',
+                            LPAD(MONTH(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(LAST_DAY(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)))
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    )
+        END
+
+        WHEN s.billing_cycle = '1Y' THEN
+                CASE
+                    WHEN STR_TO_DATE(
+                        CONCAT(
+                            YEAR(CURDATE()), '-',
+                            LPAD(MONTH(s.start_date), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(
+                                        LAST_DAY(
+                                            STR_TO_DATE(
+                                                CONCAT(
+                                                    YEAR(CURDATE()), '-',
+                                                    LPAD(MONTH(s.start_date), 2, '0'), '-01'
+                                                ),
+                                                '%Y-%m-%d'
+                                            )
+                                        )
+                                    )
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    ) >= CURDATE()
+                    THEN STR_TO_DATE(
+                        CONCAT(
+                            YEAR(CURDATE()), '-',
+                            LPAD(MONTH(s.start_date), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(
+                                        LAST_DAY(
+                                            STR_TO_DATE(
+                                                CONCAT(
+                                                    YEAR(CURDATE()), '-',
+                                                    LPAD(MONTH(s.start_date), 2, '0'), '-01'
+                                                ),
+                                                '%Y-%m-%d'
+                                            )
+                                        )
+                                    )
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    )
+                    ELSE STR_TO_DATE(
+                        CONCAT(
+                            YEAR(CURDATE()) + 1, '-',
+                            LPAD(MONTH(s.start_date), 2, '0'), '-',
+                            LPAD(
+                                LEAST(
+                                    DAY(s.start_date),
+                                    DAY(
+                                        LAST_DAY(
+                                            STR_TO_DATE(
+                                                CONCAT(
+                                                    YEAR(CURDATE()) + 1, '-',
+                                                    LPAD(MONTH(s.start_date), 2, '0'), '-01'
+                                                ),
+                                                '%Y-%m-%d'
+                                            )
+                                        )
+                                    )
+                                ),
+                                2,
+                                '0'
+                            )
+                        ),
+                        '%Y-%m-%d'
+                    )
+        END
+        END AS nextPaymentDate
+
+    FROM add_subscription s
+             JOIN subscription_item i
+                  ON s.item_id = i.item_id
+             JOIN subscription_category c
+                  ON i.category_id = c.category_id
+             LEFT JOIN payment_method pm
+                  ON s.payment_id = pm.payment_id
+             LEFT JOIN card ca
+                  ON pm.card_id = ca.card_id
+    WHERE s.user_id = #{userId}
+        AND s.use_yn = 'Y'
+        ORDER BY s.created_at DESC
+    </select>
+
+    <!-- 구독 상세 수정ㅇ -->
+
+    <select id="selectSubscriptionById" parameterType="long"
+            resultType="com.subees.submanager.subscription.model.vo.Subscription">
+        SELECT
+            s.subscription_id,
+            i.category_id,
+            s.item_id,
+            s.price,
+            s.billing_cycle,
+            s.start_date,
+            s.payment_id
+        FROM add_subscription s
+                 JOIN subscription_item i ON s.item_id = i.item_id
+        WHERE s.subscription_id = #{subscriptionId}
+          AND s.user_id = #{userId}
+    </select>
+
+    <!-- 구독 상세 조회 -->
+    <select id="selectById"
+            parameterType="long"
+            resultMap="subscriptionDetailResultMap">
+        SELECT
+            s.subscription_id AS subscriptionId,
+            sc.category_name AS categoryName,
+            si.item_name AS itemName,
+            s.price AS price,
+            s.billing_cycle AS billingCycle,
+            DATE(s.start_date) AS startDate,
+            s.use_yn AS useYn,
+            s.created_at AS createdAt,
+            pm.payment_id AS payment_method_id,
+            CASE
+            WHEN pm.card_id IS NOT NULL THEN CONCAT(c.card_company, '(', pm.card_name, ')')
+            ELSE pm.custom_card_company
+        END AS payment_method_name
+        FROM add_subscription s
+        JOIN subscription_item si
+            ON s.item_id = si.item_id
+        JOIN subscription_category sc
+            ON si.category_id = sc.category_id
+        LEFT JOIN payment_method pm
+            ON s.payment_id = pm.payment_id
+        LEFT JOIN card c
+            ON pm.card_id = c.card_id
+        WHERE s.subscription_id = #{subscriptionId}
+        AND s.user_id = #{userId}
+        AND s.use_yn = 'Y'
+    </select>
+
+    <!-- 중복 구독 검사 -->
+    <select id="countDuplicateSubscription"
+            parameterType="com.subees.submanager.subscription.model.dto.crud.CreateSubscriptionRequest"
+            resultType="int">
+        SELECT COUNT(*)
+        FROM add_subscription
+        WHERE user_id = #{userId}
+          AND item_id = #{request.itemId}
+          AND payment_id = #{request.paymentId}
+          AND start_date = #{request.startDate}
+          AND use_yn = 'Y'
+    </select>
+
+    <!--중복 아이템, 카테고리 그리고 조합 관한거-->
+    <select id="existsCategory" resultType="int">
+        SELECT COUNT(*)
+        FROM subscription_category
+        WHERE category_id = #{categoryId}
+    </select>
+
+    <select id="existsItem" resultType="int">
+        SELECT COUNT(*)
+        FROM subscription_item
+        WHERE item_id = #{itemId}
+    </select>
+
+    <select id="existsItemInCategory" resultType="int">
+        SELECT COUNT(*)
+        FROM subscription_item
+        WHERE category_id = #{categoryId}
+          AND item_id = #{itemId}
+    </select>
+
+    <!-- 구독 등록 -->
+    <insert id="insertSubscription"
+            parameterType="com.subees.submanager.subscription.model.dto.crud.CreateSubscriptionRequest">
+        INSERT INTO add_subscription
+        (
+            user_id,
+            item_id,
+            payment_id,
+            price,
+            billing_cycle,
+            start_date,
+            use_yn,
+            created_at,
+            updated_at
+        )
+        VALUES (
+           #{userId},
+           #{request.itemId},
+           #{request.paymentId},
+           #{request.price},
+           #{request.billingCycle},
+           #{request.startDate},
+           'Y',
+           NOW(),
+           NOW()
+               )
+    </insert>
+
+    <!--구독 항목 직접 입력 -> 등록-->
+
+
+    <!--결제수단 없을 시 확인-->
+    <select id="existsPaymentMethod" resultType="int">
+        SELECT COUNT(*)
+        FROM payment_method
+        WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- 마지막 등록 id 조회 -->
+    <select id="selectLastInsertedId" resultType="long">
+        SELECT LAST_INSERT_ID()
+    </select>
+
+    <!--구독항목 삭제-->
+    <update id="softDeleteSubscription" parameterType="long">
+        UPDATE add_subscription
+        SET use_yn = 'N',
+            end_date = CURDATE(),
+            updated_at = NOW()
+        WHERE subscription_id = #{subscriptionId}
+          AND user_id = #{userId}
+          AND use_yn = 'Y'
+    </update>
+
+    <update id="updateSubscription">
+        UPDATE add_subscription
+        SET
+            item_id = #{request.itemId},
+            payment_id = #{request.paymentId},
+            price = #{request.price},
+            billing_cycle = #{request.billingCycle},
+            start_date = #{request.startDate},
+            updated_at = NOW()
+        WHERE subscription_id = #{subscriptionId}
+          AND user_id = #{userId}
+    </update>
+
+    <select id="findItemIdByCategoryAndName" resultType="long">
+        SELECT item_id
+        FROM subscription_item
+        WHERE category_id = #{categoryId}
+          AND item_name = #{itemName}
+    </select>
+
+    <insert id="insertSubscriptionItem">
+        INSERT INTO subscription_item
+        (
+            category_id,
+            item_name
+        )
+        VALUES
+            (
+                #{categoryId},
+                #{itemName}
+            )
+    </insert>
+
+
+
+</mapper>

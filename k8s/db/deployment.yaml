@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: subees
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MARIADB_DATABASE
+              value: subscription_db
+
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-username
+
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-password
+
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: subees-secret
+                  key: db-root-password
+
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+      volumes:
+        - name: mariadb-data
+          persistentVolumeClaim:
+            claimName: mariadb-pvc

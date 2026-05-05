@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.subees.submanager.notification.model.mapper.NotificationMapper">
+
+    <select id="selectNotificationsByUserId"
+            resultType="com.subees.submanager.notification.model.dto.NotificationResponse">
+        SELECT
+            notification_id AS notificationId,
+            title,
+            content,
+            CASE
+                WHEN notify_type = 'D3' THEN 'D-3'
+                WHEN notify_type = 'D0' THEN 'D-DAY'
+                END AS dday,
+            is_read AS isRead
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND is_closed = 0
+          AND target_date &gt;= CURDATE()
+        ORDER BY is_read ASC, target_date ASC, created_at DESC
+    </select>
+
+    <insert id="insertNotifications">
+        INSERT INTO notifications (
+            user_id,
+            subscription_id,
+            notify_type,
+            title,
+            content,
+            target_date,
+            is_read,
+            is_closed,
+            created_at
+        )
+        SELECT
+            s.user_id,
+            s.subscription_id,
+
+            CASE
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 3 THEN 'D3'
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 0 THEN 'D0'
+                END AS notify_type,
+
+            CASE
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 3
+                    THEN CONCAT(i.item_name, '의 구독이 곧 갱신돼요')
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 0
+                    THEN CONCAT(i.item_name, ' 결제일이 오늘이에요')
+                END AS title,
+
+            CASE
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 3
+                    THEN CONCAT(COALESCE(c.card_company, pm.custom_card_company), '로 결제될 예정이에요.')
+                WHEN DATEDIFF(calc.target_date, CURDATE()) = 0
+                    THEN CONCAT(COALESCE(c.card_company, pm.custom_card_company), '로 오늘 결제 예정이에요.')
+                END AS content,
+
+            calc.target_date,
+            0,
+            0,
+            NOW()
+
+        FROM add_subscription s
+                 JOIN subscription_item i
+                      ON s.item_id = i.item_id
+                 JOIN payment_method pm
+                      ON s.payment_id = pm.payment_id
+                 LEFT JOIN card c
+                      ON pm.card_id = c.card_id
+                 JOIN (
+            SELECT
+                sub.subscription_id,
+                CASE
+                    WHEN sub.billing_cycle = '1M' THEN
+                        CASE
+                            WHEN STR_TO_DATE(
+                                         CONCAT(
+                                             YEAR(CURDATE()), '-',
+                                                              LPAD(MONTH(CURDATE()), 2, '0'), '-',
+                                                              LPAD(
+                                                                      LEAST(
+                                                                          DAY(sub.start_date),
+                                                                          DAY(LAST_DAY(CURDATE()))
+                                        ),
+                                                                      2,
+                                                                      '0'
+                                                              )
+                                         ),
+                                         '%Y-%m-%d'
+                                 ) &gt;= CURDATE()
+                                THEN STR_TO_DATE(
+                                    CONCAT(
+                                        YEAR(CURDATE()), '-',
+                                                         LPAD(MONTH(CURDATE()), 2, '0'), '-',
+                                                         LPAD(
+                                                                 LEAST(
+                                                                     DAY(sub.start_date),
+                                                                     DAY(LAST_DAY(CURDATE()))
+                                        ),
+                                                                 2,
+                                                                 '0'
+                                                         )
+                                    ),
+                                    '%Y-%m-%d'
+                                     )
+                            ELSE STR_TO_DATE(
+                                    CONCAT(
+                                        YEAR(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)), '-',
+                                                                                     LPAD(MONTH(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)), 2, '0'), '-',
+                                                                                     LPAD(
+                                                                                             LEAST(
+                                                                                                 DAY(sub.start_date),
+                                                                                                 DAY(LAST_DAY(DATE_ADD(CURDATE(), INTERVAL 1 MONTH)))
+                                        ),
+                                                                                             2,
+                                                                                             '0'
+                                                                                     )
+                                    ),
+                                    '%Y-%m-%d'
+                                 )
+                            END
+
+                    WHEN sub.billing_cycle = '1Y' THEN
+                        CASE
+                            WHEN STR_TO_DATE(
+                                         CONCAT(
+                                             YEAR(CURDATE()), '-',
+                                                              LPAD(MONTH(sub.start_date), 2, '0'), '-',
+                                                              LPAD(
+                                                                      LEAST(
+                                                                          DAY(sub.start_date),
+                                                                          DAY(
+                                                LAST_DAY(
+                                                    STR_TO_DATE(
+                                                        CONCAT(
+                                                            YEAR(CURDATE()), '-',
+                                                            LPAD(MONTH(sub.start_date), 2, '0'), '-01'
+                                                        ),
+                                                        '%Y-%m-%d'
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                                                      2,
+                                                                      '0'
+                                                              )
+                                         ),
+                                         '%Y-%m-%d'
+                                 ) &gt;= CURDATE()
+                                THEN STR_TO_DATE(
+                                    CONCAT(
+                                        YEAR(CURDATE()), '-',
+                                                         LPAD(MONTH(sub.start_date), 2, '0'), '-',
+                                                         LPAD(
+                                                                 LEAST(
+                                                                     DAY(sub.start_date),
+                                                                     DAY(
+                                                LAST_DAY(
+                                                    STR_TO_DATE(
+                                                        CONCAT(
+                                                            YEAR(CURDATE()), '-',
+                                                            LPAD(MONTH(sub.start_date), 2, '0'), '-01'
+                                                        ),
+                                                        '%Y-%m-%d'
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                                                 2,
+                                                                 '0'
+                                                         )
+                                    ),
+                                    '%Y-%m-%d'
+                                     )
+                            ELSE STR_TO_DATE(
+                                    CONCAT(
+                                        YEAR(CURDATE()) + 1, '-',
+                                                             LPAD(MONTH(sub.start_date), 2, '0'), '-',
+                                                             LPAD(
+                                                                     LEAST(
+                                                                         DAY(sub.start_date),
+                                                                         DAY(
+                                                LAST_DAY(
+                                                    STR_TO_DATE(
+                                                        CONCAT(
+                                                            YEAR(CURDATE()) + 1, '-',
+                                                            LPAD(MONTH(sub.start_date), 2, '0'), '-01'
+                                                        ),
+                                                        '%Y-%m-%d'
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                                                     2,
+                                                                     '0'
+                                                             )
+                                    ),
+                                    '%Y-%m-%d'
+                                 )
+                            END
+                    END AS target_date
+            FROM add_subscription sub
+            WHERE sub.use_yn = 'Y'
+        ) calc
+                      ON s.subscription_id = calc.subscription_id
+
+        WHERE s.user_id = #{userId}
+          AND s.use_yn = 'Y'
+          AND s.start_date &lt;&gt; CURDATE()
+          AND DATEDIFF(calc.target_date, CURDATE()) IN (3, 0)
+          AND NOT EXISTS (
+            SELECT 1
+            FROM notifications n
+            WHERE n.user_id = s.user_id
+              AND n.subscription_id = s.subscription_id
+              AND n.notify_type = CASE
+                                      WHEN DATEDIFF(calc.target_date, CURDATE()) = 3 THEN 'D3'
+                                      WHEN DATEDIFF(calc.target_date, CURDATE()) = 0 THEN 'D0'
+                END
+              AND n.target_date = calc.target_date
+        )
+    </insert>
+
+    <update id="updateNotificationRead">
+        UPDATE notifications
+        SET is_read = 1
+        WHERE notification_id = #{notificationId}
+          AND is_closed = 0
+    </update>
+
+    <update id="updateNotificationClose">
+        UPDATE notifications
+        SET is_closed = 1
+        WHERE notification_id = #{notificationId}
+          AND is_closed = 0
+    </update>
+
+    <select id="existsReadableNotification" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE notification_id = #{notificationId}
+          AND is_closed = 0
+    </select>
+
+    <select id="existsClosableNotification" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE notification_id = #{notificationId}
+          AND is_closed = 0
+    </select>
+
+</mapper>

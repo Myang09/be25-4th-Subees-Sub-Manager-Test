@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.subees.submanager.recommend.model.mapper.RecommendStatusMapper">
+
+    <resultMap id="popularSubscriptionStatResultMap" type="com.subees.submanager.recommend.model.dto.PopularSubscriptionStat">
+        <result property="itemName" column="item_name"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="subscribeCount" column="subscribe_count"/>
+        <result property="avgPrice" column="avg_price"/>
+    </resultMap>
+
+    <select id="findTopPopularSubscriptions" resultMap="popularSubscriptionStatResultMap">
+        SELECT
+            si.item_name,
+            sc.category_name,
+            COUNT(*) AS subscribe_count,
+            ROUND(AVG(a.price)) AS avg_price
+        FROM add_subscription a
+                 JOIN subscription_item si ON a.item_id = si.item_id
+                 JOIN subscription_category sc ON si.category_id = sc.category_id
+        WHERE a.use_yn = 'Y'
+        GROUP BY si.item_id, si.item_name, sc.category_name
+        ORDER BY subscribe_count DESC, avg_price ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

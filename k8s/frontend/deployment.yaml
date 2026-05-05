@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: subees-frontend
+  namespace: subees
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: subees-frontend
+  template:
+    metadata:
+      labels:
+        app: subees-frontend
+    spec:
+      containers:
+        - name: subees-frontend
+          image: myang12/subees-frontend:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"

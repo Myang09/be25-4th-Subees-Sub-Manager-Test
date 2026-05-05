@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: subscription
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/subscription_db
+    username: beyond
+    password: beyond
+    
+#    url: jdbc:mariadb://localhost:3306/total
+#    username: main
+#    password: 1234
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+logging:
+  level:
+    com.subees.submanager: debug
+    org.springframework.security: info
+
+mybatis:
+  type-aliases-package: com.subees.submanager.*.model.vo
+  mapper-locations:
+    - classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    jdbc-type-for-null: NULL
+
+jwt:
+  secret: subees1234subees1234subees1234subees1234
+  access-token-expiration: 1800000
+
+app:
+  upload:
+    dir: uploads/profile-images
+  profile:
+    default-image-url: https://example.com/images/default-profile.png
+  ai:
+    provider: groq
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+    groq:
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:llama-3.3-70b-versatile}

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.subees.submanager.recommend.model.mapper.RecommendMapper">
+
+    <resultMap id="recommendReportResultMap" type="com.subees.submanager.recommend.model.vo.recommend.RecommendReport">
+        <id property="reportId" column="report_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="reportTitle" column="report_title"/>
+        <result property="requestNote" column="request_note"/>
+        <result property="generatedContent" column="generated_content"/>
+        <result property="totalMonthlyPrice" column="total_monthly_price"/>
+        <result property="maxMonthlyBudget" column="max_monthly_budget"/>
+        <result property="mandatoryItemsJson" column="mandatory_items_json"/>
+        <result property="optionalItemsJson" column="optional_items_json"/>
+        <result property="reportStatus" column="report_status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="recommendSubscriptionItemResultMap" type="com.subees.submanager.recommend.model.vo.recommend.RecommendSubscriptionItem">
+        <id property="recommendItemId" column="recommend_item_id"/>
+        <result property="reportId" column="report_id"/>
+        <result property="serviceName" column="service_name"/>
+        <result property="category" column="category"/>
+        <result property="monthlyPrice" column="monthly_price"/>
+        <result property="description" column="description"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertReport"
+            parameterType="com.subees.submanager.recommend.model.vo.recommend.RecommendReport"
+            useGeneratedKeys="true"
+            keyProperty="reportId">
+        INSERT INTO recommend_report (
+            user_id,
+            report_title,
+            request_note,
+            generated_content,
+            total_monthly_price,
+            max_monthly_budget,
+            mandatory_items_json,
+            optional_items_json,
+            report_status,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{userId},
+            #{reportTitle},
+            #{requestNote},
+            #{generatedContent},
+            #{totalMonthlyPrice},
+            #{maxMonthlyBudget},
+            #{mandatoryItemsJson},
+            #{optionalItemsJson},
+            #{reportStatus},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <insert id="insertSubscriptionItem"
+            parameterType="com.subees.submanager.recommend.model.vo.recommend.RecommendSubscriptionItem"
+            useGeneratedKeys="true"
+            keyProperty="recommendItemId">
+        INSERT INTO recommend_subscription_item (
+            report_id,
+            service_name,
+            category,
+            monthly_price,
+            description,
+            sort_order,
+            created_at
+        ) VALUES (
+            #{reportId},
+            #{serviceName},
+            #{category},
+            #{monthlyPrice},
+            #{description},
+            #{sortOrder},
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="findReportByIdAndUserId" resultMap="recommendReportResultMap">
+        SELECT
+            report_id,
+            user_id,
+            report_title,
+            request_note,
+            generated_content,
+            total_monthly_price,
+            max_monthly_budget,
+            mandatory_items_json,
+            optional_items_json,
+            report_status,
+            created_at,
+            updated_at
+        FROM recommend_report
+        WHERE report_id = #{reportId}
+          AND user_id = #{userId}
+    </select>
+
+    <select id="findItemsByReportId" resultMap="recommendSubscriptionItemResultMap">
+        SELECT
+            recommend_item_id,
+            report_id,
+            service_name,
+            category,
+            monthly_price,
+            description,
+            sort_order,
+            created_at
+        FROM recommend_subscription_item
+        WHERE report_id = #{reportId}
+        ORDER BY sort_order ASC, recommend_item_id ASC
+    </select>
+
+    <select id="findReportById" resultType="com.subees.submanager.recommend.model.vo.recommend.RecommendReport">
+        SELECT
+            report_id,
+            user_id,
+            report_title,
+            request_note,
+            generated_content,
+            total_monthly_price,
+            max_monthly_budget,
+            mandatory_items_json,
+            optional_items_json,
+            report_status,
+            created_at,
+            updated_at
+        FROM recommend_report
+        WHERE report_id = #{reportId}
+    </select>
+
+    <update id="updateGeneratedResult">
+        UPDATE recommend_report
+        SET report_title = #{reportTitle},
+            generated_content = #{generatedContent},
+            total_monthly_price = #{totalMonthlyPrice},
+            report_status = #{reportStatus},
+            updated_at = NOW()
+        WHERE report_id = #{reportId}
+    </update>
+
+    <update id="saveReport">
+        UPDATE recommend_report
+        SET report_title = #{reportTitle},
+            generated_content = #{generatedContent},
+            report_status = #{reportStatus},
+            updated_at = NOW()
+        WHERE report_id = #{reportId}
+    </update>
+
+    <select id="findSavedReportsByUserId" resultMap="recommendReportResultMap">
+        SELECT
+            report_id,
+            user_id,
+            report_title,
+            request_note,
+            generated_content,
+            total_monthly_price,
+            max_monthly_budget,
+            mandatory_items_json,
+            optional_items_json,
+            report_status,
+            created_at,
+            updated_at
+        FROM recommend_report
+        WHERE user_id = #{userId}
+          AND report_status = 'SAVED'
+        ORDER BY updated_at DESC, report_id DESC
+    </select>
+
+    <delete id="deleteItemsByReportId">
+        DELETE FROM recommend_subscription_item
+        WHERE report_id = #{reportId}
+    </delete>
+
+    <delete id="deleteReportByIdAndUserId">
+        DELETE FROM recommend_report
+        WHERE report_id = #{reportId}
+          AND user_id = #{userId}
+    </delete>
+</mapper>

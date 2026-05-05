@@ -1,0 +1,19 @@
+# IntelliJ
+.idea
+
+
+# git
+.git
+.gitignore
+
+# docker
+.dockerignore
+
+# logs
+*.log
+logs
+
+# config
+application.yml
+application-*.yml
+*.yml

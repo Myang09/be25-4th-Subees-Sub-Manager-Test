@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# production
+dist/
+
+# local env files
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+
+# build output
+*.local
+
+# cache
+.cache/

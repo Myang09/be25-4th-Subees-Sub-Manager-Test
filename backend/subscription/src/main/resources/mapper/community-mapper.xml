@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.subees.submanager.community.model.mapper.CommunityMapper">
+
+<!-- resultMap = 조회 결과를 어떻게 Java 객체에 담을지 정의하는 설정. 조회된 결과가 담기면 resultMap 규칙대로 dto에 담음 -->
+
+    <!-- 스크링 부트 실행 버튼 실행 안 돼서  type에 경로 추가해주니까 실행됨.  -->
+    <resultMap id="communityListResultMap" type="com.subees.submanager.community.model.dto.post.CommunityPostListResponseDto">
+        <id     property="postId"     column="post_id"/>
+        <result property="title"      column="title"/>
+        <result property="nickname"   column="nickname"/>
+        <result property="createdAt"  column="created_at"/>
+        <result property="viewCount"  column="view_count"/>
+    </resultMap>
+
+    <!-- 페이징 게시글 조회 -->
+    <select id="selectCommunityPostList" parameterType="com.subees.submanager.community.model.dto.post.CommunityPostPageRequestDto" resultMap="communityListResultMap">
+        SELECT cp.post_id,
+               cp.title,
+               u.nickname,
+               cp.created_at,
+               cp.view_count
+        FROM community_posts cp
+        LEFT OUTER JOIN user u ON cp.user_id = u.user_id
+        ORDER BY cp.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- 전체 게시글 수 조회 -->
+    <select id="selectCommunityPostCount" resultType="int">
+        SELECT COUNT(*) FROM community_posts
+    </select>
+
+    <!-- 게시글 상세 조회 -->
+    <resultMap id="communityDetailResultMap" type="com.subees.submanager.community.model.dto.post.CommunityPostDetailResponseDto">
+        <id     property="postId"     column="post_id"/>
+        <result property="title"      column="title"/>
+        <result property="content"    column="content"/>
+        <result property="nickname"   column="nickname"/>
+        <result property="viewCount"  column="view_count"/>
+        <result property="scrapCount" column="scrap_count"/>
+        <result property="createdAt"  column="created_at"/>
+    </resultMap>
+
+    <select id="selectCommunityPostDetail" parameterType="long" resultMap="communityDetailResultMap">
+        SELECT cp.post_id,
+               cp.title,
+               cp.content,
+               u.nickname,
+               cp.view_count,
+               cp.scrap_count,
+               cp.created_at
+        FROM community_posts cp
+        LEFT OUTER JOIN user u ON cp.user_id = u.user_id
+        WHERE cp.post_id = #{postId}
+    </select>
+
+    <!-- 조회수 +1 -->
+    <update id="updateViewCount" parameterType="long">
+        UPDATE community_posts
+        SET view_count = view_count + 1
+        WHERE post_id = #{postId}
+    </update>
+
+    <!-- 글 작성 -->
+    <insert id="insertCommunityPost" parameterType="com.subees.submanager.community.model.dto.post.CommunityPostCreateDto" useGeneratedKeys="true" keyProperty="postId">
+        INSERT INTO community_posts
+        (user_id, title, content)
+        VALUES
+        (#{userId}, #{title}, #{content})
+    </insert>
+
+    <!-- 게시글 작성자 userId 조회 -->
+    <!-- 403 체크에 필요한 데이터를 조회 -->
+    <select id="selectPostOwnerUserId" parameterType="long" resultType="long">
+        SELECT user_id FROM community_posts WHERE post_id = #{postId}
+    </select>
+
+    <!-- 글 수정 -->
+    <update id="updateCommunityPost" parameterType="com.subees.submanager.community.model.dto.post.CommunityPostUpdateDto">
+        UPDATE community_posts SET
+        title = #{title},
+        content = #{content}
+        WHERE post_id = #{postId}
+    </update>
+
+    <!-- 수정된 글 조회 -->
+    <resultMap id="communityUpdateResultMap" type="com.subees.submanager.community.model.dto.post.CommunityPostUpdateResponseDto">
+        <id     property="postId"    column="post_id"/>
+        <result property="title"     column="title"/>
+        <result property="content"   column="content"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectUpdatedPost" parameterType="long" resultMap="communityUpdateResultMap">
+        SELECT post_id, title, content, updated_at
+        FROM community_posts
+        WHERE post_id = #{postId}
+    </select>
+
+    <!-- 게시글 삭제 -->
+    <delete id="deleteCommunityPost" parameterType="long">
+        DELETE FROM community_posts WHERE post_id = #{postId}
+    </delete>
+
+    <!--스크랩 삭제 후 게시글 삭제 되게 설정-->
+    <delete id="deleteAllScrapsByPostId">
+        DELETE FROM community_scrap
+        WHERE post_id = #{postId}
+    </delete>
+
+    <!-- 스크랩 저장 -->
+    <!-- useGeneratedKeys: DB가 자동으로 생성한 PK 값을 자바 객체에 다시 채워줌-->
+    <insert id="insertCommunityScrap" parameterType="com.subees.submanager.community.model.dto.scrap.CommunityScrapCreateDto"
+            useGeneratedKeys="true" keyProperty="scrapId">
+        INSERT INTO community_scrap (post_id, user_id)
+        VALUES (#{postId}, #{userId})
+    </insert>
+
+    <!-- 저장된 스크랩 조회 (생성 응답용) -->
+    <resultMap id="scrapResponseResultMap" type="com.subees.submanager.community.model.dto.scrap.CommunityScrapResponseDto">
+        <id     property="scrapId"   column="scrap_id"/>
+        <result property="postId"    column="post_id"/>
+        <result property="userId"    column="user_id"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="selectScrapById" parameterType="long" resultMap="scrapResponseResultMap">
+        SELECT scrap_id, post_id, user_id, created_at
+        FROM community_scrap
+        WHERE scrap_id = #{scrapId}
+    </select>
+
+    <!-- 중복 스크랩 체크 -->
+    <select id="selectScrapDuplicateCount" resultType="int">
+        SELECT COUNT(*)
+        FROM community_scrap
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </select>
+
+    <!-- 게시글 scrap_count +1 -->
+    <update id="updateScrapCount" parameterType="long">
+        UPDATE community_posts
+        SET scrap_count = scrap_count + 1
+        WHERE post_id = #{postId}
+    </update>
+
+    <!-- 스크랩 목록 (페이징) -->
+    <resultMap id="scrapListResultMap" type="com.subees.submanager.community.model.dto.scrap.CommunityScrapListResponseDto">
+        <id     property="scrapId"   column="scrap_id"/>
+        <result property="postId"    column="post_id"/>
+        <result property="title"     column="title"/>
+        <result property="nickname"  column="nickname"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="selectScrapList" parameterType="com.subees.submanager.community.model.dto.scrap.CommunityScrapPageRequestDto" resultMap="scrapListResultMap">
+        SELECT cs.scrap_id,
+               cs.post_id,
+               cp.title,
+               u.nickname,
+               cs.created_at
+        FROM community_scrap cs
+        JOIN community_posts cp ON cs.post_id = cp.post_id
+        JOIN user u ON cp.user_id = u.user_id
+        WHERE cs.user_id = #{userId}
+        ORDER BY cs.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- 스크랩 총 개수 -->
+    <select id="selectScrapTotalCount" resultType="int">
+        SELECT COUNT(*) FROM community_scrap WHERE user_id = #{userId}
+    </select>
+
+    <!-- 스크랩 취소 -->
+    <delete id="deleteScrap">
+        DELETE FROM community_scrap
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+    <!-- scrap_count -1 (0 아래로 안 내려감) -->
+    <update id="updateScrapCountDecrement" parameterType="long">
+        UPDATE community_posts
+        SET scrap_count = CASE WHEN scrap_count > 0 THEN scrap_count - 1 ELSE 0 END
+        WHERE post_id = #{postId}
+    </update>
+</mapper>
