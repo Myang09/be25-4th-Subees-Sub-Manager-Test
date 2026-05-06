@@ -12,7 +12,7 @@ const errors = reactive({ email: '', password: '', submit: '' })
 const canSubmit = computed(() => form.email.trim() && form.password.trim())
 
 const validate = () => {
-  errors.email = form.email.trim() ? '' : '이메일을 입력해주세요😎...!!!!!!!!!!!'
+  errors.email = form.email.trim() ? '' : '이메일을 입력해주세요.'
   errors.password = form.password.trim() ? '' : '비밀번호를 입력해주세요.'
   errors.submit = ''
   return !errors.email && !errors.password
@@ -51,7 +51,7 @@ const submit = async () => {
             <input
               v-model="form.email"
               type="email"
-              placeholder="이메일을 입력해주세요."
+              placeholder="이메일을 입력해주세요.!!"
               class="form-input auth-plain-input !min-h-[52px]"
               :class="errors.email ? 'border-danger focus:ring-0' : ''"
             />
