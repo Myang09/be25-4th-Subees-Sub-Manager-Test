@@ -129,7 +129,7 @@ spec:
                     dir('backend/subscription') {
                         sh '''
                             echo "Building backend Docker image..."
-                            docker build -t $BACK_IMAGE:$IMAGE_TAG .
+                            docker build --no-cache -t $BACK_IMAGE:$IMAGE_TAG .
                             docker push $BACK_IMAGE:$IMAGE_TAG
                         '''
                     }
@@ -145,8 +145,12 @@ spec:
                 container('docker') {
                     dir('frontend') {
                         sh '''
+                            echo "Checking frontend env..."
+                            ls -al
+                            cat .env.production || true
+
                             echo "Building frontend Docker image..."
-                            docker build -t $FRONT_IMAGE:$IMAGE_TAG .
+                            docker build --no-cache -t $FRONT_IMAGE:$IMAGE_TAG .
                             docker push $FRONT_IMAGE:$IMAGE_TAG
                         '''
                     }
