@@ -44,6 +44,7 @@ spec:
 
         IMAGE_TAG = "${BUILD_NUMBER}"
         GIT_BRANCH = 'main'
+        GIT_REPO = 'git@github.com:Myang09/be25-4th-Subees-Sub-Manager-Test.git'
     }
 
     stages {
@@ -57,26 +58,15 @@ spec:
             steps {
                 container('git') {
                     script {
-                        sh '''
-                            git fetch origin main --unshallow || true
-                            git fetch origin main || true
-                        '''
-
                         def changedText = sh(
-                            script: '''
-                                if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                  git diff --name-only HEAD~1 HEAD
-                                else
-                                  git diff --name-only origin/main HEAD || true
-                                fi
-                            ''',
+                            script: 'git diff --name-only HEAD~1 HEAD || true',
                             returnStdout: true
                         ).trim()
 
                         echo "Changed files:\n${changedText}"
 
                         env.BUILD_BACK = changedText.contains('backend/') ? 'true' : 'false'
-                        env.BUILD_FRONT = changedText.contains('frontend/') ? 'true' : 'false'
+                        env.BUILD_FRONT = changedText.contains('fronted/') ? 'true' : 'false'
 
                         echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
@@ -129,7 +119,7 @@ spec:
                     dir('backend/subscription') {
                         sh '''
                             echo "Building backend Docker image..."
-                            docker build --no-cache -t $BACK_IMAGE:$IMAGE_TAG .
+                            docker build -t $BACK_IMAGE:$IMAGE_TAG .
                             docker push $BACK_IMAGE:$IMAGE_TAG
                         '''
                     }
@@ -143,14 +133,10 @@ spec:
             }
             steps {
                 container('docker') {
-                    dir('frontend') {
+                    dir('fronted') {
                         sh '''
-                            echo "Checking frontend env..."
-                            ls -al
-                            cat .env.production || true
-
                             echo "Building frontend Docker image..."
-                            docker build --no-cache -t $FRONT_IMAGE:$IMAGE_TAG .
+                            docker build -t $FRONT_IMAGE:$IMAGE_TAG .
                             docker push $FRONT_IMAGE:$IMAGE_TAG
                         '''
                     }
@@ -167,14 +153,12 @@ spec:
                     script {
                         if (env.BUILD_BACK == 'true') {
                             sh '''
-                                echo "Updating backend image tag..."
                                 sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:$IMAGE_TAG|" k8s/backend/deployment-local.yaml
                             '''
                         }
 
                         if (env.BUILD_FRONT == 'true') {
                             sh '''
-                                echo "Updating frontend image tag..."
                                 sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/frontend/deployment.yaml
                             '''
                         }
@@ -212,7 +196,7 @@ spec:
                     apk add --no-cache curl || true
                     curl -H "Content-Type: application/json" \
                       -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT\\"}" \
-                      "$DISCORD_WEBHOOK_URL" || true
+                      "$DISCORD_WEBHOOK_URL"
                 '''
             }
         }
@@ -226,7 +210,7 @@ spec:
                     apk add --no-cache curl || true
                     curl -H "Content-Type: application/json" \
                       -d "{\\"content\\":\\"❌ Subees CI/CD 실패 - Build #$BUILD_NUMBER\\"}" \
-                      "$DISCORD_WEBHOOK_URL" || true
+                      "$DISCORD_WEBHOOK_URL"
                 '''
             }
         }
