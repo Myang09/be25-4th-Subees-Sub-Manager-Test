@@ -51,7 +51,7 @@ const submit = async () => {
             <input
               v-model="form.email"
               type="email"
-              placeholder="이메일 입력 ㄱ"
+              placeholder="이메일 입력 ㄱ!!!!"
               class="form-input auth-plain-input !min-h-[52px]"
               :class="errors.email ? 'border-danger focus:ring-0' : ''"
             />

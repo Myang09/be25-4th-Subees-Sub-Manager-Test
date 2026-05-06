@@ -253,7 +253,7 @@ spec:
     }
 
     post {
-        always {
+        success {
             script {
                 if (env.SKIP_NOTIFY == 'true') {
                     echo "Skip Discord notification for manifest-only commit."
@@ -265,17 +265,26 @@ spec:
                 credentialsId: "${DISCORD_WEBHOOK_CREDENTIALS_ID}",
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
-                discordSend description: """
-                제목 : ${currentBuild.displayName} 빌드
-                결과 : ${currentBuild.currentResult}
-                Frontend : ${env.BUILD_FRONT}
-                Backend : ${env.BUILD_BACK}
-                Image Tag : ${env.IMAGE_TAG}
-                실행 시간 : ${currentBuild.duration / 1000}s
-                """,
-                result: currentBuild.currentResult,
-                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                webhookURL: DISCORD_WEBHOOK_URL
+                sh '''
+                    curl --max-time 10 --connect-timeout 5 \
+                      -H "Content-Type: application/json" \
+                      -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT | Image Tag: $IMAGE_TAG\\"}" \
+                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed, but pipeline continues."
+                '''
+            }
+        }
+
+        failure {
+            withCredentials([string(
+                credentialsId: "${DISCORD_WEBHOOK_CREDENTIALS_ID}",
+                variable: 'DISCORD_WEBHOOK_URL'
+            )]) {
+                sh '''
+                    curl --max-time 10 --connect-timeout 5 \
+                      -H "Content-Type: application/json" \
+                      -d "{\\"content\\":\\"❌ Subees CI/CD 실패 - Build #$BUILD_NUMBER\\"}" \
+                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed, but pipeline continues."
+                '''
             }
         }
     }
