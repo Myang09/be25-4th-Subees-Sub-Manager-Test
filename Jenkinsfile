@@ -63,8 +63,14 @@ spec:
                         ).trim()
 
                         echo "Changed files:\n${changedText}"
-                        env.BUILD_BACK = changedText.readLines().any { it.startsWith('backend/') } ? 'true' : 'false'
-                        env.BUILD_FRONT = changedText.readLines().any { it.startsWith('fronted/') } ? 'true' : 'false'
+
+                        env.BUILD_BACK = changedText.readLines().any {
+                            it.startsWith('backend/')
+                        } ? 'true' : 'false'
+
+                        env.BUILD_FRONT = changedText.readLines().any {
+                            it.startsWith('fronted/')
+                        } ? 'true' : 'false'
 
                         echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
@@ -74,7 +80,7 @@ spec:
             }
         }
 
-        stage('2. Build Application') {
+        stage('2. Build Backend Application') {
             when {
                 expression { env.BUILD_BACK == 'true' }
             }
@@ -147,7 +153,9 @@ spec:
                             sh '''
                                 echo "Updating backend deployment image..."
                                 sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:$IMAGE_TAG|" k8s/backend/deployment-local.yaml
-                                cat k8s/backend/deployment-local.yaml
+
+                                echo "=== Backend deployment after update ==="
+                                grep -n "image:" k8s/backend/deployment-local.yaml
                             '''
                         }
 
@@ -155,9 +163,12 @@ spec:
                             sh '''
                                 echo "Updating frontend deployment image..."
                                 sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/frontend/deployment.yaml
-                                cat k8s/frontend/deployment.yaml
+
+                                echo "=== Frontend deployment after update ==="
+                                grep -n "image:" k8s/frontend/deployment.yaml
                             '''
                         }
+                    }
                 }
             }
         }
@@ -178,13 +189,18 @@ spec:
                         git diff
 
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
+
                         git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
+
+                        echo "=== Git status ==="
                         git status
+
                         git push origin $GIT_BRANCH
                     '''
                 }
             }
         }
+    }
 
     post {
         success {
