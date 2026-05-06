@@ -31,6 +31,19 @@ spec:
         }
     }
 
+    parameters {
+        booleanParam(
+            name: 'FORCE_BUILD_BACK',
+            defaultValue: false,
+            description: '백엔드 강제 빌드'
+        )
+        booleanParam(
+            name: 'FORCE_BUILD_FRONT',
+            defaultValue: false,
+            description: '프론트 강제 빌드'
+        )
+    }
+
     environment {
         FRONT_IMAGE = 'myang12/subees-frontend'
         BACK_IMAGE  = 'myang12/subees-backend'
@@ -62,11 +75,15 @@ spec:
 
                         def changedText = sh(
                             script: '''
-                                if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                  git diff --name-only HEAD~1 HEAD
-                                else
+                                {
+                                  if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                                    echo "=== diff HEAD~1..HEAD ==="
+                                    git diff --name-only HEAD~1 HEAD
+                                  fi
+
+                                  echo "=== files in HEAD commit ==="
                                   git show --name-only --pretty="" HEAD
-                                fi
+                                } | grep -v "^===" | sort -u
                             ''',
                             returnStdout: true
                         ).trim()
@@ -90,7 +107,7 @@ spec:
                             it.startsWith('k8s/')
                         }
 
-                        if (onlyK8sChanged) {
+                        if (onlyK8sChanged && !params.FORCE_BUILD_BACK && !params.FORCE_BUILD_FRONT) {
                             echo "Only k8s manifest changed. Skip application build."
                             env.BUILD_FRONT = 'false'
                             env.BUILD_BACK = 'false'
@@ -98,9 +115,11 @@ spec:
                             return
                         }
 
-                        env.BUILD_FRONT = hasFrontChange ? 'true' : 'false'
-                        env.BUILD_BACK = hasBackChange ? 'true' : 'false'
+                        env.BUILD_FRONT = (hasFrontChange || params.FORCE_BUILD_FRONT) ? 'true' : 'false'
+                        env.BUILD_BACK = (hasBackChange || params.FORCE_BUILD_BACK) ? 'true' : 'false'
 
+                        echo "FORCE_BUILD_FRONT=${params.FORCE_BUILD_FRONT}"
+                        echo "FORCE_BUILD_BACK=${params.FORCE_BUILD_BACK}"
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
                         echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "IMAGE_TAG=${env.IMAGE_TAG}"
@@ -148,7 +167,8 @@ spec:
                             dir('backend/subscription') {
                                 sh '''
                                     echo "Building backend Docker image..."
-                                    docker build -t $BACK_IMAGE:$IMAGE_TAG .
+                                    docker build --no-cache -t $BACK_IMAGE:$IMAGE_TAG .
+                                    docker image inspect $BACK_IMAGE:$IMAGE_TAG
                                     docker push $BACK_IMAGE:$IMAGE_TAG
                                 '''
                             }
@@ -158,7 +178,8 @@ spec:
                             dir('fronted') {
                                 sh '''
                                     echo "Building frontend Docker image..."
-                                    docker build -t $FRONT_IMAGE:$IMAGE_TAG .
+                                    docker build --no-cache -t $FRONT_IMAGE:$IMAGE_TAG .
+                                    docker image inspect $FRONT_IMAGE:$IMAGE_TAG
                                     docker push $FRONT_IMAGE:$IMAGE_TAG
                                 '''
                             }
