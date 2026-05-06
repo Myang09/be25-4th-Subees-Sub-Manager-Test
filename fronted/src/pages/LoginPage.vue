@@ -12,7 +12,7 @@ const errors = reactive({ email: '', password: '', submit: '' })
 const canSubmit = computed(() => form.email.trim() && form.password.trim())
 
 const validate = () => {
-  errors.email = form.email.trim() ? '' : '이메일을 입력해주세요😎...!!'
+  errors.email = form.email.trim() ? '' : '이메일을 입력해주세요😎...!!!!'
   errors.password = form.password.trim() ? '' : '비밀번호를 입력해주세요.'
   errors.submit = ''
   return !errors.email && !errors.password
