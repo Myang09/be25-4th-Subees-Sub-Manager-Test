@@ -175,6 +175,8 @@ spec:
                         git config --global --add safe.directory "$WORKSPACE"
                         git config user.name "jenkins-bot"
                         git config user.email "jenkins-bot@example.com"
+                        git checkout -B main origin/main
+
 
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
                         git commit -m "Update image tag to $IMAGE_TAG" || true
