@@ -5,13 +5,17 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: subees-ci-agent
+  name: subees-app-agent
 spec:
   containers:
   - name: maven
     image: maven:3.9.9-eclipse-temurin-21-alpine
     command: ["cat"]
     tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
   - name: docker
     image: docker:28.5.1-cli-alpine3.22
     command: ["cat"]
@@ -19,11 +23,21 @@ spec:
     volumeMounts:
     - name: docker-socket
       mountPath: /var/run/docker.sock
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
   - name: git
     image: alpine/git
     command: ["cat"]
     tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
   volumes:
+  - name: workspace-volume
+    emptyDir: {}
+
   - name: docker-socket
     hostPath:
       path: /var/run/docker.sock
@@ -37,6 +51,7 @@ spec:
             defaultValue: false,
             description: '백엔드 강제 빌드'
         )
+
         booleanParam(
             name: 'FORCE_BUILD_FRONT',
             defaultValue: false,
@@ -52,18 +67,20 @@ spec:
         DISCORD_WEBHOOK_CREDENTIALS_ID = 'discord-webhook'
 
         IMAGE_TAG = "${BUILD_NUMBER}"
-        GIT_BRANCH = 'main'
 
-        BUILD_FRONT = 'false'
-        BUILD_BACK = 'false'
-        SKIP_NOTIFY = 'false'
+        SHOULD_BUILD_FRONT = 'false'
+        SHOULD_BUILD_BACK = 'false'
     }
 
     stages {
-        stage('1. Checkout & Detect Changes') {
+        stage('1. Checkout') {
             steps {
                 checkout scm
+            }
+        }
 
+        stage('2. Detect Changes') {
+            steps {
                 container('git') {
                     script {
                         sh 'git config --global --add safe.directory "$WORKSPACE"'
@@ -77,21 +94,19 @@ spec:
                             script: '''
                                 {
                                   if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                    echo "=== diff HEAD~1..HEAD ==="
                                     git diff --name-only HEAD~1 HEAD
                                   fi
 
-                                  echo "=== files in HEAD commit ==="
                                   git show --name-only --pretty="" HEAD
-                                } | grep -v "^===" | sort -u
+                                } | sort -u
                             ''',
                             returnStdout: true
                         ).trim()
 
                         def changedFiles = changedText.readLines()
-                            .collect { it.trim() }
-                            .findAll { it }
-                            .unique()
+                                .collect { it.trim() }
+                                .findAll { it }
+                                .unique()
 
                         echo "Changed files:\n${changedFiles.join('\n')}"
 
@@ -103,34 +118,46 @@ spec:
                             it.startsWith('backend/')
                         }
 
-                        def onlyK8sChanged = changedFiles && changedFiles.every {
-                            it.startsWith('k8s/')
-                        }
-
-                        if (onlyK8sChanged && !params.FORCE_BUILD_BACK && !params.FORCE_BUILD_FRONT) {
-                            echo "Only k8s manifest changed. Skip application build."
-                            env.BUILD_FRONT = 'false'
-                            env.BUILD_BACK = 'false'
-                            env.SKIP_NOTIFY = 'true'
-                            return
-                        }
-
-                        env.BUILD_FRONT = (hasFrontChange || params.FORCE_BUILD_FRONT) ? 'true' : 'false'
-                        env.BUILD_BACK = (hasBackChange || params.FORCE_BUILD_BACK) ? 'true' : 'false'
+                        env.SHOULD_BUILD_FRONT = (hasFrontChange || params.FORCE_BUILD_FRONT) ? 'true' : 'false'
+                        env.SHOULD_BUILD_BACK = (hasBackChange || params.FORCE_BUILD_BACK) ? 'true' : 'false'
 
                         echo "FORCE_BUILD_FRONT=${params.FORCE_BUILD_FRONT}"
                         echo "FORCE_BUILD_BACK=${params.FORCE_BUILD_BACK}"
-                        echo "BUILD_FRONT=${env.BUILD_FRONT}"
-                        echo "BUILD_BACK=${env.BUILD_BACK}"
+                        echo "SHOULD_BUILD_FRONT=${env.SHOULD_BUILD_FRONT}"
+                        echo "SHOULD_BUILD_BACK=${env.SHOULD_BUILD_BACK}"
                         echo "IMAGE_TAG=${env.IMAGE_TAG}"
                     }
                 }
             }
         }
 
-        stage('2. Build Backend Application') {
+        stage('3. Docker Login') {
             when {
-                expression { env.BUILD_BACK == 'true' }
+                expression {
+                    return env.SHOULD_BUILD_FRONT == 'true' || env.SHOULD_BUILD_BACK == 'true'
+                }
+            }
+
+            steps {
+                container('docker') {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        sh '''
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('4. Build Backend App') {
+            when {
+                expression {
+                    return env.SHOULD_BUILD_BACK == 'true'
+                }
             }
 
             steps {
@@ -145,112 +172,64 @@ spec:
             }
         }
 
-        stage('3. Docker Build & Push') {
+        stage('5. Backend Image Build & Push') {
             when {
-                expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
+                expression {
+                    return env.SHOULD_BUILD_BACK == 'true'
+                }
             }
 
             steps {
                 container('docker') {
-                    withCredentials([usernamePassword(
-                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
+                    dir('backend/subscription') {
                         sh '''
-                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            echo "Building backend Docker image..."
+                            docker build --no-cache -t $BACK_IMAGE:$IMAGE_TAG .
+                            docker image inspect $BACK_IMAGE:$IMAGE_TAG
+                            docker push $BACK_IMAGE:$IMAGE_TAG
                         '''
-                    }
-
-                    script {
-                        if (env.BUILD_BACK == 'true') {
-                            dir('backend/subscription') {
-                                sh '''
-                                    echo "Building backend Docker image..."
-                                    docker build --no-cache -t $BACK_IMAGE:$IMAGE_TAG .
-                                    docker image inspect $BACK_IMAGE:$IMAGE_TAG
-                                    docker push $BACK_IMAGE:$IMAGE_TAG
-                                '''
-                            }
-                        }
-
-                        if (env.BUILD_FRONT == 'true') {
-                            dir('fronted') {
-                                sh '''
-                                    echo "Building frontend Docker image..."
-                                    docker build --no-cache -t $FRONT_IMAGE:$IMAGE_TAG .
-                                    docker image inspect $FRONT_IMAGE:$IMAGE_TAG
-                                    docker push $FRONT_IMAGE:$IMAGE_TAG
-                                '''
-                            }
-                        }
                     }
                 }
             }
         }
 
-        stage('4. Update Kubernetes Manifests') {
+        stage('6. Frontend Image Build & Push') {
             when {
-                expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
+                expression {
+                    return env.SHOULD_BUILD_FRONT == 'true'
+                }
             }
 
             steps {
-                container('git') {
-                    script {
-                        sh 'git config --global --add safe.directory "$WORKSPACE"'
-
-                        if (env.BUILD_BACK == 'true') {
-                            sh '''
-                                echo "Updating backend deployment image..."
-                                sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:$IMAGE_TAG|" k8s/backend/deployment-local.yaml
-
-                                echo "=== Backend deployment after update ==="
-                                grep -n "image:" k8s/backend/deployment-local.yaml
-                            '''
-                        }
-
-                        if (env.BUILD_FRONT == 'true') {
-                            sh '''
-                                echo "Updating frontend deployment image..."
-                                sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/frontend/deployment.yaml
-
-                                echo "=== Frontend deployment after update ==="
-                                grep -n "image:" k8s/frontend/deployment.yaml
-                            '''
-                        }
+                container('docker') {
+                    dir('fronted') {
+                        sh '''
+                            echo "Building frontend Docker image..."
+                            docker build --no-cache -t $FRONT_IMAGE:$IMAGE_TAG .
+                            docker image inspect $FRONT_IMAGE:$IMAGE_TAG
+                            docker push $FRONT_IMAGE:$IMAGE_TAG
+                        '''
                     }
                 }
             }
         }
 
-        stage('5. Commit & Push Manifests') {
+        stage('7. Trigger k8s Manifest Job') {
             when {
-                expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
+                expression {
+                    return env.SHOULD_BUILD_FRONT == 'true' || env.SHOULD_BUILD_BACK == 'true'
+                }
             }
 
             steps {
-                container('git') {
-                    sshagent(credentials: ['github-subees']) {
-                        sh '''
-                            git config --global --add safe.directory "$WORKSPACE"
-                            git config user.name "jenkins-bot"
-                            git config user.email "jenkins-bot@example.com"
-
-                            mkdir -p ~/.ssh
-                            ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-                            echo "=== Git diff before commit ==="
-                            git diff
-
-                            git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
-                            git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
-
-                            echo "=== Git status ==="
-                            git status
-
-                            git push origin HEAD:$GIT_BRANCH
-                        '''
-                    }
+                script {
+                    build job: 'subees-k8s-manifests',
+                        parameters: [
+                            string(name: 'DOCKER_IMAGE_VERSION', value: "${env.IMAGE_TAG}"),
+                            string(name: 'DID_BUILD_FRONT', value: "${env.SHOULD_BUILD_FRONT}"),
+                            string(name: 'DID_BUILD_BACK', value: "${env.SHOULD_BUILD_BACK}")
+                        ],
+                        wait: true
                 }
             }
         }
@@ -258,13 +237,6 @@ spec:
 
     post {
         success {
-            script {
-                if (env.SKIP_NOTIFY == 'true') {
-                    echo "Skip Discord notification for manifest-only commit."
-                    return
-                }
-            }
-
             withCredentials([string(
                 credentialsId: "${DISCORD_WEBHOOK_CREDENTIALS_ID}",
                 variable: 'DISCORD_WEBHOOK_URL'
@@ -272,8 +244,8 @@ spec:
                 sh '''
                     curl --max-time 10 --connect-timeout 5 \
                       -H "Content-Type: application/json" \
-                      -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT | Image Tag: $IMAGE_TAG\\"}" \
-                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed, but pipeline continues."
+                      -d "{\\"content\\":\\"✅ Subees App Build 성공 - Build #$BUILD_NUMBER | Backend: $SHOULD_BUILD_BACK | Frontend: $SHOULD_BUILD_FRONT | Image Tag: $IMAGE_TAG\\"}" \
+                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed."
                 '''
             }
         }
@@ -286,8 +258,8 @@ spec:
                 sh '''
                     curl --max-time 10 --connect-timeout 5 \
                       -H "Content-Type: application/json" \
-                      -d "{\\"content\\":\\"❌ Subees CI/CD 실패 - Build #$BUILD_NUMBER\\"}" \
-                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed, but pipeline continues."
+                      -d "{\\"content\\":\\"❌ Subees App Build 실패 - Build #$BUILD_NUMBER\\"}" \
+                      "$DISCORD_WEBHOOK_URL" || echo "Discord notification failed."
                 '''
             }
         }
