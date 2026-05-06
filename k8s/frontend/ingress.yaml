@@ -9,21 +9,17 @@ spec:
     - host: subees.beyond.com
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
-                name: subees-frontend
-                port:
-                  number: 80
-
-    - host: api.subees.beyond.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: subees-backend
+                name: subees-backend-service
                 port:
                   number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: subees-frontend-service
+                port:
+                  number: 80
