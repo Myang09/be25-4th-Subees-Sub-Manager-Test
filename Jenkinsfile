@@ -40,6 +40,10 @@ spec:
 
         IMAGE_TAG = "${BUILD_NUMBER}"
         GIT_BRANCH = 'main'
+
+        BUILD_FRONT = 'false'
+        BUILD_BACK = 'false'
+        SKIP_NOTIFY = 'false'
     }
 
     stages {
@@ -51,29 +55,71 @@ spec:
                     script {
                         sh 'git config --global --add safe.directory "$WORKSPACE"'
 
-                        def changedText = sh(
-                            script: '''
-                                if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                  git diff --name-only HEAD~1 HEAD
-                                else
-                                  git show --name-only --pretty="" HEAD
-                                fi
-                            ''',
+                        def currentCommit = sh(
+                            script: 'git rev-parse HEAD',
                             returnStdout: true
                         ).trim()
 
-                        echo "Changed files:\n${changedText}"
+                        def previousCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
 
-                        env.BUILD_BACK = changedText.readLines().any {
-                            it.startsWith('backend/')
-                        } ? 'true' : 'false'
+                        if (!previousCommit?.trim()) {
+                            previousCommit = sh(
+                                script: '''
+                                    if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                                      git rev-parse HEAD~1
+                                    else
+                                      git rev-parse HEAD
+                                    fi
+                                ''',
+                                returnStdout: true
+                            ).trim()
+                        }
 
-                        env.BUILD_FRONT = changedText.readLines().any {
+                        echo "Previous commit: ${previousCommit}"
+                        echo "Current commit: ${currentCommit}"
+
+                        sh '''
+                            echo "=== Git log ==="
+                            git log --oneline -5
+                        '''
+
+                        def changedText = sh(
+                            script: "git diff --name-only ${previousCommit} ${currentCommit}",
+                            returnStdout: true
+                        ).trim()
+
+                        def changedFiles = changedText.readLines()
+                            .collect { it.trim() }
+                            .findAll { it }
+                            .unique()
+
+                        echo "Changed files:\n${changedFiles.join('\n')}"
+
+                        def hasFrontChange = changedFiles.any {
                             it.startsWith('fronted/')
-                        } ? 'true' : 'false'
+                        }
 
-                        echo "BUILD_BACK=${env.BUILD_BACK}"
+                        def hasBackChange = changedFiles.any {
+                            it.startsWith('backend/')
+                        }
+
+                        def onlyK8sChanged = changedFiles && changedFiles.every {
+                            it.startsWith('k8s/')
+                        }
+
+                        if (onlyK8sChanged) {
+                            echo "Only k8s manifest changed. Skip application build."
+                            env.BUILD_FRONT = 'false'
+                            env.BUILD_BACK = 'false'
+                            env.SKIP_NOTIFY = 'true'
+                            return
+                        }
+
+                        env.BUILD_FRONT = hasFrontChange ? 'true' : 'false'
+                        env.BUILD_BACK = hasBackChange ? 'true' : 'false'
+
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
+                        echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "IMAGE_TAG=${env.IMAGE_TAG}"
                     }
                 }
@@ -207,29 +253,29 @@ spec:
     }
 
     post {
-        success {
-            withCredentials([string(
-                credentialsId: "${DISCORD_WEBHOOK_CREDENTIALS_ID}",
-                variable: 'DISCORD_WEBHOOK_URL'
-            )]) {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                      -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT | Image Tag: $IMAGE_TAG\\"}" \
-                      "$DISCORD_WEBHOOK_URL"
-                '''
+        always {
+            script {
+                if (env.SKIP_NOTIFY == 'true') {
+                    echo "Skip Discord notification for manifest-only commit."
+                    return
+                }
             }
-        }
 
-        failure {
             withCredentials([string(
                 credentialsId: "${DISCORD_WEBHOOK_CREDENTIALS_ID}",
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                      -d "{\\"content\\":\\"❌ Subees CI/CD 실패 - Build #$BUILD_NUMBER\\"}" \
-                      "$DISCORD_WEBHOOK_URL"
-                '''
+                discordSend description: """
+                제목 : ${currentBuild.displayName} 빌드
+                결과 : ${currentBuild.currentResult}
+                Frontend : ${env.BUILD_FRONT}
+                Backend : ${env.BUILD_BACK}
+                Image Tag : ${env.IMAGE_TAG}
+                실행 시간 : ${currentBuild.duration / 1000}s
+                """,
+                result: currentBuild.currentResult,
+                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                webhookURL: "${DISCORD_WEBHOOK_URL}"
             }
         }
     }
