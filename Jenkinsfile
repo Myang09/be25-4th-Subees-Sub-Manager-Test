@@ -180,26 +180,30 @@ spec:
 
             steps {
                 container('git') {
-                    sh '''
-                        git config --global --add safe.directory "$WORKSPACE"
-                        git config user.name "jenkins-bot"
-                        git config user.email "jenkins-bot@example.com"
+                    sshagent(credentials: ['github-subees']) {
+                        sh '''
+                            git config --global --add safe.directory "$WORKSPACE"
+                            git config user.name "jenkins-bot"
+                            git config user.email "jenkins-bot@example.com"
 
-                        echo "=== Git diff before commit ==="
-                        git diff
+                            mkdir -p ~/.ssh
+                            ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-                        git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
-                        git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
+                            echo "=== Git diff before commit ==="
+                            git diff
 
-                        echo "=== Git status ==="
-                        git status
+                            git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
+                            git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
 
-                        git push origin HEAD:$GIT_BRANCH
-                    '''
+                            echo "=== Git status ==="
+                            git status
+
+                            git push origin HEAD:$GIT_BRANCH
+                        '''
+                    }
                 }
             }
         }
-    }
 
     post {
         success {
