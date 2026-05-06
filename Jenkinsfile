@@ -55,40 +55,19 @@ spec:
                     script {
                         sh 'git config --global --add safe.directory "$WORKSPACE"'
 
-                        def currentCommit = sh(
-                            script: 'git rev-parse HEAD',
-                            returnStdout: true
-                        ).trim()
-
-                        def previousCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
-
-                        /*
-                         * 수동 빌드나 특정 상황에서 previousCommit이 currentCommit과 같게 잡히는 경우가 있음.
-                         * 그 경우 같은 커밋끼리 diff를 떠서 changedFiles가 비어버리므로 HEAD~1로 보정.
-                         */
-                        if (!previousCommit?.trim() || previousCommit == currentCommit) {
-                            previousCommit = sh(
-                                script: '''
-                                    if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                      git rev-parse HEAD~1
-                                    else
-                                      git rev-parse HEAD
-                                    fi
-                                ''',
-                                returnStdout: true
-                            ).trim()
-                        }
-
-                        echo "Previous commit: ${previousCommit}"
-                        echo "Current commit: ${currentCommit}"
-
                         sh '''
                             echo "=== Git log ==="
                             git log --oneline -5
                         '''
 
                         def changedText = sh(
-                            script: "git diff --name-only ${previousCommit} ${currentCommit}",
+                            script: '''
+                                if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                                  git diff --name-only HEAD~1 HEAD
+                                else
+                                  git show --name-only --pretty="" HEAD
+                                fi
+                            ''',
                             returnStdout: true
                         ).trim()
 
