@@ -7,12 +7,8 @@ pipeline {
         string(name: 'DID_BUILD_BACK', defaultValue: 'false', description: 'Did Build Backend')
     }
 
-    environment {
-        GIT_BRANCH = 'main'
-    }
-
     stages {
-        stage('1. Checkout Main Branch') {
+        stage('Checkout Main Branch') {
             steps {
                 checkout scm
 
@@ -27,69 +23,55 @@ pipeline {
             }
         }
 
-        stage('2. Update Frontend Deployment') {
+        stage('Update Frontend deploy.yaml') {
             when {
                 expression {
-                    return params.DID_BUILD_FRONT == 'true'
+                    return params.DID_BUILD_FRONT == "true"
                 }
             }
 
             steps {
                 sh '''
-                    echo "Updating frontend image tag..."
-                    sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:${DOCKER_IMAGE_VERSION}|" k8s/frontend/deployment.yaml
-
-                    echo "=== Frontend deployment image ==="
+                    echo "Received Docker Image Version : ${DOCKER_IMAGE_VERSION}"
+                    sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:${DOCKER_IMAGE_VERSION}|g" k8s/frontend/deployment.yaml
                     grep -n "image:" k8s/frontend/deployment.yaml
                 '''
             }
         }
 
-        stage('3. Update Backend Deployment') {
+        stage('Update Backend deploy.yaml') {
             when {
                 expression {
-                    return params.DID_BUILD_BACK == 'true'
+                    return params.DID_BUILD_BACK == "true"
                 }
             }
 
             steps {
                 sh '''
-                    echo "Updating backend image tag..."
-                    sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:${DOCKER_IMAGE_VERSION}|" k8s/backend/deployment-local.yaml
-
-                    echo "=== Backend deployment image ==="
+                    echo "Received Docker Image Version : ${DOCKER_IMAGE_VERSION}"
+                    sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:${DOCKER_IMAGE_VERSION}|g" k8s/backend/deployment-local.yaml
                     grep -n "image:" k8s/backend/deployment-local.yaml
                 '''
             }
         }
 
-        stage('4. Commit & Push') {
+        stage('Commit & Push') {
             when {
                 expression {
-                    return params.DID_BUILD_FRONT == 'true' || params.DID_BUILD_BACK == 'true'
+                    return params.DID_BUILD_FRONT == "true" || params.DID_BUILD_BACK == "true"
                 }
             }
 
             steps {
-                sshagent(credentials: ['github-subees']) {
-                    sh '''
-                        git config user.name "jenkins-bot"
-                        git config user.email "jenkins-bot@example.com"
+                sh 'git config user.name "jenkins-bot"'
+                sh 'git config user.email "jenkins-bot@example.com"'
 
-                        mkdir -p ~/.ssh
-                        ssh-keyscan github.com >> ~/.ssh/known_hosts
+                sh 'git add k8s/frontend/deployment.yaml k8s/backend/deployment-local.yaml'
+                sh "git commit -m 'Update Image Version ${params.DOCKER_IMAGE_VERSION}' || echo 'No changes to commit'"
+                sh 'git status'
 
-                        echo "=== Git diff before commit ==="
-                        git diff
-
-                        git add k8s/frontend/deployment.yaml k8s/backend/deployment-local.yaml
-                        git commit -m "Update image tag to ${DOCKER_IMAGE_VERSION}" || echo "No changes to commit"
-
-                        echo "=== Git status ==="
-                        git status
-
-                        git push origin HEAD:${GIT_BRANCH}
-                    '''
+                sshagent(['github-subees']) {
+                    sh 'git push origin HEAD:main'
                 }
             }
         }
