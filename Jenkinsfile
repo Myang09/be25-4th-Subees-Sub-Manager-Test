@@ -204,6 +204,7 @@ spec:
                 }
             }
         }
+    }
 
     post {
         success {
