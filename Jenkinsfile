@@ -155,7 +155,7 @@ spec:
                         if (env.BUILD_FRONT == 'true') {
                             sh '''
                                 echo "Updating frontend deployment image..."
-                                sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/frontend/deployment.yaml
+                                sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/fronted/deployment.yaml
                                 cat k8s/frontend/deployment.yaml
                             '''
                         }
