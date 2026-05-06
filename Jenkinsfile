@@ -12,10 +12,6 @@ spec:
     image: maven:3.9.9-eclipse-temurin-21-alpine
     command: ["cat"]
     tty: true
-  - name: node
-    image: node:20-alpine
-    command: ["cat"]
-    tty: true
   - name: docker
     image: docker:28.5.1-cli-alpine3.22
     command: ["cat"]
@@ -44,26 +40,23 @@ spec:
 
         IMAGE_TAG = "${BUILD_NUMBER}"
         GIT_BRANCH = 'main'
-        GIT_REPO = 'git@github.com:Myang09/be25-4th-Subees-Sub-Manager-Test.git'
     }
 
     stages {
-        stage('Checkout') {
+        stage('1. Checkout & Detect Changes') {
             steps {
                 checkout scm
-            }
-        }
 
-        stage('Detect Changes') {
-            steps {
                 container('git') {
                     script {
+                        sh 'git config --global --add safe.directory "$WORKSPACE"'
+
                         def changedText = sh(
                             script: '''
                                 if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                                git diff --name-only HEAD~1 HEAD
+                                  git diff --name-only HEAD~1 HEAD
                                 else
-                                git show --name-only --pretty="" HEAD
+                                  git show --name-only --pretty="" HEAD
                                 fi
                             ''',
                             returnStdout: true
@@ -76,20 +69,22 @@ spec:
 
                         echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
+                        echo "IMAGE_TAG=${env.IMAGE_TAG}"
                     }
                 }
             }
         }
 
-        stage('Backend Build') {
+        stage('2. Build Application') {
             when {
                 expression { env.BUILD_BACK == 'true' }
             }
+
             steps {
                 container('maven') {
                     dir('backend/subscription') {
                         sh '''
-                            echo "Building backend..."
+                            echo "Building backend application..."
                             mvn -B clean package -DskipTests
                         '''
                     }
@@ -97,10 +92,11 @@ spec:
             }
         }
 
-        stage('Docker Login') {
+        stage('3. Docker Build & Push') {
             when {
                 expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
             }
+
             steps {
                 container('docker') {
                     withCredentials([usernamePassword(
@@ -112,60 +108,55 @@ spec:
                             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
                         '''
                     }
-                }
-            }
-        }
 
-        stage('Build & Push Backend Image') {
-            when {
-                expression { env.BUILD_BACK == 'true' }
-            }
-            steps {
-                container('docker') {
-                    dir('backend/subscription') {
-                        sh '''
-                            echo "Building backend Docker image..."
-                            docker build -t $BACK_IMAGE:$IMAGE_TAG .
-                            docker push $BACK_IMAGE:$IMAGE_TAG
-                        '''
+                    script {
+                        if (env.BUILD_BACK == 'true') {
+                            dir('backend/subscription') {
+                                sh '''
+                                    echo "Building backend Docker image..."
+                                    docker build -t $BACK_IMAGE:$IMAGE_TAG .
+                                    docker push $BACK_IMAGE:$IMAGE_TAG
+                                '''
+                            }
+                        }
+
+                        if (env.BUILD_FRONT == 'true') {
+                            dir('fronted') {
+                                sh '''
+                                    echo "Building frontend Docker image..."
+                                    docker build -t $FRONT_IMAGE:$IMAGE_TAG .
+                                    docker push $FRONT_IMAGE:$IMAGE_TAG
+                                '''
+                            }
+                        }
                     }
                 }
             }
         }
 
-        stage('Build & Push Frontend Image') {
-            when {
-                expression { env.BUILD_FRONT == 'true' }
-            }
-            steps {
-                container('docker') {
-                    dir('fronted') {
-                        sh '''
-                            echo "Building frontend Docker image..."
-                            docker build -t $FRONT_IMAGE:$IMAGE_TAG .
-                            docker push $FRONT_IMAGE:$IMAGE_TAG
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Update Kubernetes Manifests') {
+        stage('4. Update Kubernetes Manifests') {
             when {
                 expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
             }
+
             steps {
                 container('git') {
                     script {
+                        sh 'git config --global --add safe.directory "$WORKSPACE"'
+
                         if (env.BUILD_BACK == 'true') {
                             sh '''
+                                echo "Updating backend deployment image..."
                                 sed -i "s|image: myang12/subees-backend:.*|image: myang12/subees-backend:$IMAGE_TAG|" k8s/backend/deployment-local.yaml
+                                cat k8s/backend/deployment-local.yaml
                             '''
                         }
 
                         if (env.BUILD_FRONT == 'true') {
                             sh '''
+                                echo "Updating frontend deployment image..."
                                 sed -i "s|image: myang12/subees-frontend:.*|image: myang12/subees-frontend:$IMAGE_TAG|" k8s/frontend/deployment.yaml
+                                cat k8s/frontend/deployment.yaml
                             '''
                         }
                     }
@@ -173,18 +164,21 @@ spec:
             }
         }
 
-        stage('Push Manifest Changes') {
+        stage('5. Commit & Push Manifests') {
             when {
                 expression { env.BUILD_BACK == 'true' || env.BUILD_FRONT == 'true' }
             }
+
             steps {
                 container('git') {
                     sh '''
+                        git config --global --add safe.directory "$WORKSPACE"
                         git config user.name "jenkins-bot"
                         git config user.email "jenkins-bot@example.com"
 
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
                         git commit -m "Update image tag to $IMAGE_TAG" || true
+                        git status
                         git push origin $GIT_BRANCH
                     '''
                 }
@@ -199,9 +193,8 @@ spec:
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
                 sh '''
-                    apk add --no-cache curl || true
                     curl -H "Content-Type: application/json" \
-                      -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT\\"}" \
+                      -d "{\\"content\\":\\"✅ Subees CI/CD 성공 - Build #$BUILD_NUMBER | Backend: $BUILD_BACK | Frontend: $BUILD_FRONT | Image Tag: $IMAGE_TAG\\"}" \
                       "$DISCORD_WEBHOOK_URL"
                 '''
             }
@@ -213,7 +206,6 @@ spec:
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
                 sh '''
-                    apk add --no-cache curl || true
                     curl -H "Content-Type: application/json" \
                       -d "{\\"content\\":\\"❌ Subees CI/CD 실패 - Build #$BUILD_NUMBER\\"}" \
                       "$DISCORD_WEBHOOK_URL"
