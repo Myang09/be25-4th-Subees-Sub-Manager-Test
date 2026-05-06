@@ -197,4 +197,10 @@ k8s/secret.yaml
 secret.yaml
 secrets.yaml
 
+*.key
+tls.key
+tls.crt
+*.pem
+*.p12
+*.jks
 
