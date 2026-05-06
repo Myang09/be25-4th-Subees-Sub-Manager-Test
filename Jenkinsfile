@@ -105,7 +105,7 @@ spec:
                             withEnv(["DOCKER_IMAGE_VERSION=${buildNumber}"]) {
                                 sh 'docker -v'
                                 sh 'echo $BACK_IMAGE:$DOCKER_IMAGE_VERSION'
-                                sh 'docker build --no-cache -t $BACK_IMAGE:$DOCKER_IMAGE_VERSION ./'
+                                sh 'docker build -t $BACK_IMAGE:$DOCKER_IMAGE_VERSION ./'
                                 sh 'docker image inspect $BACK_IMAGE:$DOCKER_IMAGE_VERSION'
                                 sh 'docker push $BACK_IMAGE:$DOCKER_IMAGE_VERSION'
                             }
@@ -131,7 +131,7 @@ spec:
                             withEnv(["DOCKER_IMAGE_VERSION=${buildNumber}"]) {
                                 sh 'docker -v'
                                 sh 'echo $FRONT_IMAGE:$DOCKER_IMAGE_VERSION'
-                                sh 'docker build --no-cache -t $FRONT_IMAGE:$DOCKER_IMAGE_VERSION ./'
+                                sh 'docker build -t $FRONT_IMAGE:$DOCKER_IMAGE_VERSION ./'
                                 sh 'docker image inspect $FRONT_IMAGE:$DOCKER_IMAGE_VERSION'
                                 sh 'docker push $FRONT_IMAGE:$DOCKER_IMAGE_VERSION'
                             }
