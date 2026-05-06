@@ -59,7 +59,13 @@ spec:
                 container('git') {
                     script {
                         def changedText = sh(
-                            script: 'git diff --name-only HEAD~1 HEAD || true',
+                            script: '''
+                                if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                                git diff --name-only HEAD~1 HEAD
+                                else
+                                git show --name-only --pretty="" HEAD
+                                fi
+                            ''',
                             returnStdout: true
                         ).trim()
 
