@@ -185,22 +185,26 @@ spec:
                         git config user.name "jenkins-bot"
                         git config user.email "jenkins-bot@example.com"
 
+                        echo "=== Current branch before checkout ==="
+                        git branch -a
+
+                        echo "=== Checkout local main branch ==="
+                        git checkout -B main origin/main
+
                         echo "=== Git diff before commit ==="
                         git diff
 
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
-
                         git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
 
                         echo "=== Git status ==="
                         git status
 
-                        git push origin $GIT_BRANCH
+                        git push origin HEAD:main
                     '''
                 }
             }
         }
-    }
 
     post {
         success {
