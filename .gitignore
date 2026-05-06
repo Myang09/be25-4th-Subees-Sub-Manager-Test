@@ -197,4 +197,15 @@ k8s/secret.yaml
 secret.yaml
 secrets.yaml
 
+subees-tls.key
+*.key
+*.pem
+*.crt
+*-tls.key
+*-tls.crt
+kubernetes_secret.yaml
+**/kubernetes_secret.yaml
+secret.yaml
+secrets.yaml
+*-secret.yaml
 
