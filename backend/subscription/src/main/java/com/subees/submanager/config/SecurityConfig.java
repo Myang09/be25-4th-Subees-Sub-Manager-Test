@@ -53,7 +53,10 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
-                "https://subees.beyond.com:*"
+                "http://subees.beyond.com:*",
+                "http://api.subees.beyond.com:*",
+                "https://subees.beyond.com:*",
+                "https://api.subees.beyond.com:*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

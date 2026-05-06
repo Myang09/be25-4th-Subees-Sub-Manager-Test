@@ -1,25 +1,22 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: subees-ingress
-  namespace: subees
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: subees.beyond.com
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: subees-backend-service
-                port:
-                  number: 8080
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: subees-frontend-service
-                port:
-                  number: 80
+rules:
+  - host: api.subees.beyond.com
+    http:
+      paths:
+        - pathType: Prefix
+          path: /
+          backend:
+            service:
+              name: subees-backend-service
+              port:
+                number: 8080
+
+  - host: subees.beyond.com
+    http:
+      paths:
+        - pathType: Prefix
+          path: /
+          backend:
+            service:
+              name: subees-frontend-service
+              port:
+                number: 80
