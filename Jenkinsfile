@@ -63,9 +63,8 @@ spec:
                         ).trim()
 
                         echo "Changed files:\n${changedText}"
-
-                        env.BUILD_BACK = changedText.contains('backend/') ? 'true' : 'false'
-                        env.BUILD_FRONT = changedText.contains('fronted/') ? 'true' : 'false'
+                        env.BUILD_BACK = changedText.readLines().any { it.startsWith('backend/') } ? 'true' : 'false'
+                        env.BUILD_FRONT = changedText.readLines().any { it.startsWith('fronted/') } ? 'true' : 'false'
 
                         echo "BUILD_BACK=${env.BUILD_BACK}"
                         echo "BUILD_FRONT=${env.BUILD_FRONT}"
@@ -159,7 +158,6 @@ spec:
                                 cat k8s/frontend/deployment.yaml
                             '''
                         }
-                    }
                 }
             }
         }
@@ -175,7 +173,9 @@ spec:
                         git config --global --add safe.directory "$WORKSPACE"
                         git config user.name "jenkins-bot"
                         git config user.email "jenkins-bot@example.com"
-                        git checkout -B main origin/main
+
+                        echo "=== Git diff before commit ==="
+                        git diff
 
 
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
