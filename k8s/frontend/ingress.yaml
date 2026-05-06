@@ -3,8 +3,17 @@ kind: Ingress
 metadata:
   name: subees-ingress
   namespace: subees
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
 spec:
   ingressClassName: nginx
+
+  tls:
+    - secretName: subees-tls-secret
+      hosts:
+        - subees.beyond.com
+        - api.subees.beyond.com
+
   rules:
     - host: subees.beyond.com
       http:
@@ -16,3 +25,14 @@ spec:
                 name: subees-frontend-service
                 port:
                   number: 80
+
+    - host: api.subees.beyond.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: subees-backend-service
+                port:
+                  number: 8080
