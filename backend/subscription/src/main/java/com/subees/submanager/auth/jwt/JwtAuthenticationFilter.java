@@ -28,12 +28,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
 
-        return path.equals("/api/v1/login")
+        return request.getMethod().equalsIgnoreCase("OPTIONS")
+                || path.equals("/api/v1/login")
                 || path.equals("/api/v1/users")
                 || path.equals("/api/v1/users/check-email")
-                || path.equals("/api/v1/users/check-nickname")
-                || path.startsWith("/api/v1/system/")
-                || path.startsWith("/uploads/");
+                || path.equals("/api/v1/users/check-nickname");
     }
 
     @Override
