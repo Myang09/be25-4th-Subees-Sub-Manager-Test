@@ -62,7 +62,11 @@ spec:
 
                         def previousCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
 
-                        if (!previousCommit?.trim()) {
+                        /*
+                         * 수동 빌드나 특정 상황에서 previousCommit이 currentCommit과 같게 잡히는 경우가 있음.
+                         * 그 경우 같은 커밋끼리 diff를 떠서 changedFiles가 비어버리므로 HEAD~1로 보정.
+                         */
+                        if (!previousCommit?.trim() || previousCommit == currentCommit) {
                             previousCommit = sh(
                                 script: '''
                                     if git rev-parse HEAD~1 >/dev/null 2>&1; then
