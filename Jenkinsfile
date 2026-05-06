@@ -275,7 +275,7 @@ spec:
                 """,
                 result: currentBuild.currentResult,
                 title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                webhookURL: "${DISCORD_WEBHOOK_URL}"
+                webhookURL: DISCORD_WEBHOOK_URL
             }
         }
     }
