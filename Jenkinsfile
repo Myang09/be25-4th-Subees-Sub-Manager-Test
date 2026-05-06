@@ -177,16 +177,14 @@ spec:
                         echo "=== Git diff before commit ==="
                         git diff
 
-
                         git add k8s/backend/deployment-local.yaml k8s/frontend/deployment.yaml
-                        git commit -m "Update image tag to $IMAGE_TAG" || true
+                        git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
                         git status
                         git push origin $GIT_BRANCH
                     '''
                 }
             }
         }
-    }
 
     post {
         success {
