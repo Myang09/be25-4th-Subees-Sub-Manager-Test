@@ -35,7 +35,7 @@ const submit = async () => {
     <div class="grid h-full place-items-center">
       <section class="shell-card w-[min(100%,540px)] rounded-[28px] px-8 py-8 text-center xl:px-10 xl:py-9">
         <img src="/image/subees-logo.png" alt="Subees" class="mx-auto h-[88px] w-[88px] object-contain xl:h-[96px] xl:w-[96px]" />
-        <h1 class="mt-5 text-[clamp(34px,2.5vw,44px)] font-black tracking-[-0.05em] text-neutral-900">로그인!!!</h1>
+        <h1 class="mt-5 text-[clamp(34px,2.5vw,44px)] font-black tracking-[-0.05em] text-neutral-900">로그인!!😁!</h1>
         <p class="mt-2 text-sm text-neutral-500 xl:text-base">이메일과 비밀번호를 입력하면 대시보드로 이동합니다.</p>
 
         <div
